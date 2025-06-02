@@ -1,21 +1,29 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Zap, FileText, MessageSquare, Receipt, Calculator, Star, Users, Shield, Clock } from "lucide-react";
 import { Dashboard } from "@/components/Dashboard";
-import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { Link } from "react-router-dom";
 
 const Index = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user, loading } = useAuth();
 
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    toast.success("Welcome to Freelancer Copilot! 🚀");
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-green-500 rounded-lg flex items-center justify-center mx-auto mb-4">
+            <Zap className="w-5 h-5 text-white animate-pulse" />
+          </div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-  if (isLoggedIn) {
+  if (user) {
     return <Dashboard />;
   }
 
@@ -30,10 +38,12 @@ const Index = () => {
             </div>
             <span className="text-xl font-bold text-gray-900">Freelancer Copilot</span>
           </div>
-          <Button onClick={handleLogin} className="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600">
-            Get Started
-            <ArrowRight className="ml-2 w-4 h-4" />
-          </Button>
+          <Link to="/auth">
+            <Button className="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600">
+              Get Started
+              <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </Link>
         </div>
       </header>
 
@@ -54,14 +64,15 @@ const Index = () => {
             smart follow-ups, GST invoicing, and tax estimation — all in one calming interface.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              onClick={handleLogin}
-              size="lg" 
-              className="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 text-lg px-8 py-6"
-            >
-              Start Your Free Trial
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
+            <Link to="/auth">
+              <Button 
+                size="lg" 
+                className="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 text-lg px-8 py-6"
+              >
+                Start Your Free Trial
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </Link>
             <Button variant="outline" size="lg" className="text-lg px-8 py-6">
               Watch Demo
             </Button>
@@ -198,9 +209,11 @@ const Index = () => {
                   <Shield className="w-4 h-4 text-green-500 mr-2" />
                   <span>Tax estimator</span>
                 </div>
-                <Button className="w-full mt-6" variant="outline">
-                  Start Free Trial
-                </Button>
+                <Link to="/auth">
+                  <Button className="w-full mt-6" variant="outline">
+                    Start Free Trial
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
 
@@ -236,9 +249,11 @@ const Index = () => {
                   <Shield className="w-4 h-4 text-green-500 mr-2" />
                   <span>Priority support</span>
                 </div>
-                <Button className="w-full mt-6 bg-blue-500 hover:bg-blue-600">
-                  Start Free Trial
-                </Button>
+                <Link to="/auth">
+                  <Button className="w-full mt-6 bg-blue-500 hover:bg-blue-600">
+                    Start Free Trial
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           </div>

@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { 
   FileText, 
@@ -11,7 +10,6 @@ import {
   Receipt, 
   Calculator, 
   TrendingUp, 
-  Users, 
   Zap,
   Settings,
   LogOut
@@ -20,23 +18,84 @@ import { ProposalWriter } from "@/components/ProposalWriter";
 import { FollowUpGenerator } from "@/components/FollowUpGenerator";
 import { InvoiceGenerator } from "@/components/InvoiceGenerator";
 import { TaxEstimator } from "@/components/TaxEstimator";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserData } from "@/hooks/useUserData";
+import { toast } from "sonner";
 
 export const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const { user, signOut } = useAuth();
+  const { data: userData, isLoading } = useUserData();
 
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out successfully");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-green-500 rounded-lg flex items-center justify-center mx-auto mb-4">
+            <Zap className="w-5 h-5 text-white animate-pulse" />
+          </div>
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const proposalLimit = userData?.profile?.subscription_tier === 'pro' ? 100 : 10;
+  const followupLimit = userData?.profile?.subscription_tier === 'pro' ? 100 : 10;
+  
   const stats = [
-    { label: "Proposals This Month", value: "7/10", progress: 70, color: "bg-blue-500" },
-    { label: "Follow-ups Sent", value: "5/10", progress: 50, color: "bg-green-500" },
-    { label: "Invoices Generated", value: "12", progress: 100, color: "bg-purple-500" },
-    { label: "Estimated Savings", value: "₹15,000", progress: 100, color: "bg-orange-500" }
+    { 
+      label: "Proposals This Month", 
+      value: `${userData?.proposalsCount || 0}/${proposalLimit}`, 
+      progress: ((userData?.proposalsCount || 0) / proposalLimit) * 100, 
+      color: "bg-blue-500" 
+    },
+    { 
+      label: "Follow-ups Sent", 
+      value: `${userData?.followupsCount || 0}/${followupLimit}`, 
+      progress: ((userData?.followupsCount || 0) / followupLimit) * 100, 
+      color: "bg-green-500" 
+    },
+    { 
+      label: "Invoices Generated", 
+      value: `${userData?.invoicesCount || 0}`, 
+      progress: 100, 
+      color: "bg-purple-500" 
+    },
+    { 
+      label: "Total Tokens Used", 
+      value: `${userData?.usageStats?.tokens_used || 0}`, 
+      progress: 100, 
+      color: "bg-orange-500" 
+    }
   ];
 
+  // Combine recent activity from different sources
   const recentActivity = [
-    { action: "Generated proposal", client: "Tech Startup XYZ", time: "2 hours ago", type: "proposal" },
-    { action: "Sent follow-up", client: "Marketing Agency ABC", time: "1 day ago", type: "followup" },
-    { action: "Created invoice", client: "E-commerce Store", time: "2 days ago", type: "invoice" },
-    { action: "Tax calculation", client: "Q4 Earnings", time: "3 days ago", type: "tax" }
-  ];
+    ...(userData?.recentProposals?.map(p => ({
+      action: "Generated proposal",
+      client: p.client_name || "Unnamed Client",
+      time: new Date(p.created_at).toLocaleDateString(),
+      type: "proposal"
+    })) || []),
+    ...(userData?.recentInvoices?.map(i => ({
+      action: "Created invoice",
+      client: i.client_name,
+      time: new Date(i.created_at).toLocaleDateString(),
+      type: "invoice"
+    })) || []),
+    ...(userData?.recentTaxEstimations?.map(t => ({
+      action: "Tax calculation",
+      client: `₹${t.monthly_income} monthly`,
+      time: new Date(t.created_at).toLocaleDateString(),
+      type: "tax"
+    })) || [])
+  ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 4);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -50,13 +109,16 @@ export const Dashboard = () => {
             <span className="text-xl font-bold text-gray-900">Freelancer Copilot</span>
           </div>
           <div className="flex items-center space-x-4">
-            <Badge variant="outline" className="text-green-600 border-green-200">
-              Pro Plan
+            <Badge variant="outline" className="text-green-600 border-green-200 capitalize">
+              {userData?.profile?.subscription_tier || 'starter'} Plan
             </Badge>
+            <span className="text-sm text-gray-600">
+              Welcome, {userData?.profile?.name || user?.email}
+            </span>
             <Button variant="ghost" size="sm">
               <Settings className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
@@ -144,23 +206,27 @@ export const Dashboard = () => {
                   <CardDescription>Your latest actions across all tools</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {recentActivity.map((activity, index) => (
-                      <div key={index} className="flex items-center space-x-4 p-3 rounded-lg bg-gray-50">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                          {activity.type === "proposal" && <FileText className="w-4 h-4 text-blue-600" />}
-                          {activity.type === "followup" && <MessageSquare className="w-4 h-4 text-green-600" />}
-                          {activity.type === "invoice" && <Receipt className="w-4 h-4 text-purple-600" />}
-                          {activity.type === "tax" && <Calculator className="w-4 h-4 text-orange-600" />}
+                  {recentActivity.length > 0 ? (
+                    <div className="space-y-4">
+                      {recentActivity.map((activity, index) => (
+                        <div key={index} className="flex items-center space-x-4 p-3 rounded-lg bg-gray-50">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            {activity.type === "proposal" && <FileText className="w-4 h-4 text-blue-600" />}
+                            {activity.type === "followup" && <MessageSquare className="w-4 h-4 text-green-600" />}
+                            {activity.type === "invoice" && <Receipt className="w-4 h-4 text-purple-600" />}
+                            {activity.type === "tax" && <Calculator className="w-4 h-4 text-orange-600" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{activity.action}</p>
+                            <p className="text-sm text-gray-600">{activity.client}</p>
+                          </div>
+                          <p className="text-sm text-gray-500">{activity.time}</p>
                         </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{activity.action}</p>
-                          <p className="text-sm text-gray-600">{activity.client}</p>
-                        </div>
-                        <p className="text-sm text-gray-500">{activity.time}</p>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">No recent activity. Start by creating your first proposal!</p>
+                  )}
                 </CardContent>
               </Card>
             </div>

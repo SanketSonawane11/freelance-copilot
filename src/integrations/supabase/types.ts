@@ -9,13 +9,274 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      followups: {
+        Row: {
+          created_at: string | null
+          id: string
+          message_text: string
+          proposal_id: string
+          send_suggestion: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message_text: string
+          proposal_id: string
+          send_suggestion?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message_text?: string
+          proposal_id?: string
+          send_suggestion?: string | null
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followups_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          client_name: string
+          created_at: string | null
+          gst_enabled: boolean | null
+          id: string
+          invoice_number: string
+          issued_on: string | null
+          pdf_url: string | null
+          total_amount: number
+          user_id: string
+        }
+        Insert: {
+          client_name: string
+          created_at?: string | null
+          gst_enabled?: boolean | null
+          id?: string
+          invoice_number: string
+          issued_on?: string | null
+          pdf_url?: string | null
+          total_amount: number
+          user_id: string
+        }
+        Update: {
+          client_name?: string
+          created_at?: string | null
+          gst_enabled?: boolean | null
+          id?: string
+          invoice_number?: string
+          issued_on?: string | null
+          pdf_url?: string | null
+          total_amount?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      proposals: {
+        Row: {
+          ai_response: string | null
+          client_name: string | null
+          created_at: string | null
+          id: string
+          project_desc: string
+          status: string | null
+          tone: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_response?: string | null
+          client_name?: string | null
+          created_at?: string | null
+          id?: string
+          project_desc: string
+          status?: string | null
+          tone?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_response?: string | null
+          client_name?: string | null
+          created_at?: string | null
+          id?: string
+          project_desc?: string
+          status?: string | null
+          tone?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          created_at: string | null
+          id: string
+          razorpay_id: string | null
+          renewal_date: string | null
+          start_date: string | null
+          status: string | null
+          tier: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          razorpay_id?: string | null
+          renewal_date?: string | null
+          start_date?: string | null
+          status?: string | null
+          tier?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          razorpay_id?: string | null
+          renewal_date?: string | null
+          start_date?: string | null
+          status?: string | null
+          tier?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tax_estimations: {
+        Row: {
+          ai_response: string | null
+          created_at: string | null
+          id: string
+          monthly_income: number
+          user_id: string
+        }
+        Insert: {
+          ai_response?: string | null
+          created_at?: string | null
+          id?: string
+          monthly_income: number
+          user_id: string
+        }
+        Update: {
+          ai_response?: string | null
+          created_at?: string | null
+          id?: string
+          monthly_income?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      usage_stats: {
+        Row: {
+          created_at: string | null
+          followups_used: number | null
+          id: string
+          month: string
+          proposals_used: number | null
+          tokens_used: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          followups_used?: number | null
+          id?: string
+          month: string
+          proposals_used?: number | null
+          tokens_used?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          followups_used?: number | null
+          id?: string
+          month?: string
+          proposals_used?: number | null
+          tokens_used?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_active_at: string | null
+          name: string | null
+          subscription_tier: string | null
+          tokens_used: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          is_active?: boolean | null
+          last_active_at?: string | null
+          name?: string | null
+          subscription_tier?: string | null
+          tokens_used?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_active_at?: string | null
+          name?: string | null
+          subscription_tier?: string | null
+          tokens_used?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_or_create_usage_stats: {
+        Args: { user_uuid: string }
+        Returns: {
+          created_at: string | null
+          followups_used: number | null
+          id: string
+          month: string
+          proposals_used: number | null
+          tokens_used: number | null
+          user_id: string
+        }
+      }
     }
     Enums: {
       [_ in never]: never
