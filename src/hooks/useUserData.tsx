@@ -13,13 +13,9 @@ export const useUserData = () => {
 
       const currentMonth = new Date().toISOString().slice(0, 7) + '-01';
 
-      // Get usage stats for current month
+      // Get or create usage stats for current month
       const { data: usageStats } = await supabase
-        .from('usage_stats')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('month', currentMonth)
-        .single();
+        .rpc('get_or_create_usage_stats', { user_uuid: user.id });
 
       // Get proposals count for current month
       const { count: proposalsCount } = await supabase
@@ -41,7 +37,7 @@ export const useUserData = () => {
         .eq('user_id', user.id)
         .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
 
-      // Get recent activity
+      // Get recent activity - real data
       const { data: recentProposals } = await supabase
         .from('proposals')
         .select('*')
@@ -81,6 +77,8 @@ export const useUserData = () => {
         profile
       };
     },
-    enabled: !!user?.id
+    enabled: !!user?.id,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000 // 5 minutes
   });
 };
