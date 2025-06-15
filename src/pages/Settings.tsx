@@ -41,18 +41,19 @@ const Settings = () => {
     );
   }
 
-  // Subscription may be null or from any table; type guard
+  // Now we use subscription.current_plan from billing_info
   const plan =
-    subscription && (subscription.plan === "pro" || subscription.plan === "basic")
-      ? subscription.plan
-      : "starter";
-  const status =
-    subscription && typeof subscription.subscription_status === "string"
-      ? subscription.subscription_status
-      : "none";
+    subscription && (subscription.current_plan === "pro" || subscription.current_plan === "basic")
+      ? subscription.current_plan
+      : "starter"; // fallback if null/blank
+  
+  const status = subscription && typeof subscription.current_plan === "string"
+    ? "active"
+    : "none";
+  
   const expires =
-    subscription && typeof subscription.current_period_end === "string"
-      ? new Date(subscription.current_period_end).toLocaleDateString()
+    subscription && typeof subscription.renewal_date === "string"
+      ? new Date(subscription.renewal_date).toLocaleDateString()
       : "N/A";
 
   return (
@@ -66,7 +67,7 @@ const Settings = () => {
               ? "bg-gradient-to-r from-purple-500 to-pink-500"
               : "bg-gradient-to-r from-blue-500 to-green-500"
             }`}>
-              {plan === "pro" ? "Pro Plan" : "Basic Plan"}
+              {plan === "pro" ? "Pro Plan" : plan === "basic" ? "Basic Plan" : "Starter Plan"}
             </span>
             <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">
               Status: {status}

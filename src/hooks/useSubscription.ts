@@ -1,21 +1,21 @@
 
-// PATCHED: Bypass missing type for user_subscriptions
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
+/**
+ * Gets the user's subscription info from billing_info.
+ */
 export function useSubscription() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["subscription", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      // Use 'as any' for missing table
-      const { data, error } = await (supabase.from as any)("user_subscriptions")
+      const { data, error } = await supabase
+        .from("billing_info")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data;

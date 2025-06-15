@@ -64,10 +64,10 @@ const Auth = () => {
   useEffect(() => {
     async function createSubIfNeeded() {
       if (justSignedUp && user?.id) {
-        // Only create if no existing subscription for this user
+        // Only create/update billing_info for this user
         const { error } = await createInitialSubscription(user.id, signupPlan);
         if (error) {
-          toast.error("Failed to create subscription: " + error.message);
+          toast.error("Failed to create subscription: " + (error.message || JSON.stringify(error)));
         } else {
           toast.success("Your plan is set up!");
         }
