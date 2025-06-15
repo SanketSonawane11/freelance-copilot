@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,11 @@ import { createInitialSubscription } from "@/utils/createInitialSubscription";
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
   const [signupPlan, setSignupPlan] = useState<"basic" | "pro">("basic");
+  // Track if signup just happened, so we know to set subscription
+  const [justSignedUp, setJustSignedUp] = useState(false);
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -51,26 +53,29 @@ const Auth = () => {
       setIsLoading(false);
       return;
     }
-    // After sign up, create initial sub row (simulate async fetch)
-    let userId: string | null = null;
-    // Sign up sets session/user onAuthChange, so user will exist soon
-    // We'll use a polling approach for userId, as useAuth provides it asynchronously
-    let retries = 0;
-    const getUserId = () => new Promise<string | null>((resolve) => {
-      const id = (window as any)?.__last_signed_up_uid;
-      if (id) resolve(id); else setTimeout(() => resolve(getUserId()), 300);
-    });
-    if (window?.__last_signed_up_uid) {
-      userId = window.__last_signed_up_uid;
-    } else {
-      // fallback for when user is immediately available in useAuth after signUp
-      toast.info("Waiting for user account to be ready...");
-    }
-    // Fallback: just call createInitialSubscription when user signs in after signup
+    // Signal that we JUST signed up. Wait for useAuth to update with user id.
+    setJustSignedUp(true);
 
     toast.success("Account created successfully! Please check your email to verify your account.");
     setIsLoading(false);
   };
+
+  // When user is present after signup, create subscription
+  useEffect(() => {
+    async function createSubIfNeeded() {
+      if (justSignedUp && user?.id) {
+        // Only create if no existing subscription for this user
+        const { error } = await createInitialSubscription(user.id, signupPlan);
+        if (error) {
+          toast.error("Failed to create subscription: " + error.message);
+        } else {
+          toast.success("Your plan is set up!");
+        }
+        setJustSignedUp(false);
+      }
+    }
+    createSubIfNeeded();
+  }, [user?.id, justSignedUp, signupPlan]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-green-50 flex items-center justify-center p-4">
