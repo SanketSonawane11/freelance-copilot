@@ -10,14 +10,14 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-// Use ChatGPT API key if provided
-const CHATGPT_API_KEY = Deno.env.get("CHATGPT_API_KEY");
-const OPENAI_KEY = CHATGPT_API_KEY || Deno.env.get("OPENAI_API_KEY")!;
+const CHATGPT_API_KEY = Deno.env.get("CHATGPT_API_KEY"); // This is your provided token
+
+const GITHUB_AI_ENDPOINT = "https://models.github.ai/inference";
+const GITHUB_AI_MODEL = "openai/gpt-4.1";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 function hashObject(obj: Record<string, any>): string {
-  // Simple deterministic hash for deduping (not crypto-secure)
   return btoa(JSON.stringify(obj)).slice(0, 32);
 }
 
@@ -34,7 +34,6 @@ serve(async (req) => {
   }
   const { type, formInputs, plan = "starter", prefer_gpt4o = false, user_id } = params;
 
-  // Require type and user_id
   if (!type || !formInputs || !user_id) {
     return new Response(JSON.stringify({ error: "type, user_id, formInputs required" }), { status: 400, headers: corsHeaders });
   }
@@ -42,7 +41,6 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: "Invalid type" }), { status: 400, headers: corsHeaders });
   }
 
-  // Compose prompt as structured string
   let system_prompt = "";
   let user_prompt = "";
   let temperature = 0.6;
@@ -74,7 +72,7 @@ Urgency: ${formInputs.urgency || "Medium"}`;
   const input_obj = { type, plan, formInputs, system_prompt, user_prompt, tone, max_tokens };
   const input_hash = hashObject(input_obj);
 
-  // Check for deduplication in ai_usage_logs
+  // Dedupe
   let { data: prev, error: prevErr } = await supabase
     .from("ai_usage_logs")
     .select("result_json, model_used, tokens_used")
@@ -92,60 +90,74 @@ Urgency: ${formInputs.urgency || "Medium"}`;
     );
   }
 
-  // Model selection logic
-  let model = "gpt-4o-mini";
-  if (plan === "pro" && prefer_gpt4o) model = "gpt-4o";
-
-  let openaiTokens = 0, model_used = model, result_json = {};
-  let openai_body = {
-    model,
-    messages: [
-      { role: "system", content: system_prompt },
-      { role: "user", content: user_prompt },
-    ],
-    response_format: { type: "json_object" },
-    max_tokens,
-    temperature,
-  };
+  // Prepare the request to the GitHub AI endpoint
+  let result_json = {};
+  let tokens_used = 0;
+  let model_used = GITHUB_AI_MODEL;
+  let errorMsg = "";
 
   try {
-    const openaiFetch = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Use fetch to hit the endpoint similar to the provided Azure SDK usage
+    const response = await fetch(`${GITHUB_AI_ENDPOINT}/chat/completions`, {
       method: "POST",
-      headers: { "Authorization": `Bearer ${OPENAI_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify(openai_body)
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${CHATGPT_API_KEY}`,
+      },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: system_prompt },
+          { role: "user", content: user_prompt },
+        ],
+        temperature,
+        top_p: 1,
+        model: GITHUB_AI_MODEL,
+        max_tokens,
+        response_format: { type: "json_object" }
+      }),
     });
-    const openaiResult = await openaiFetch.json();
-    // Handle OpenAI errors
-    if (openaiResult.error) {
-      throw new Error(openaiResult.error.message || "ChatGPT API error");
+
+    const data = await response.json();
+
+    // Response error handling (following pattern: if isUnexpected / has error field)
+    if (!response.ok || (data?.error && !data?.choices)) {
+      errorMsg = data?.error?.message || data?.error || "ChatGPT API error";
+      throw new Error(errorMsg);
     }
-    openaiTokens = openaiResult.usage?.total_tokens || 0;
+
+    // The format should include choices[0].message.content, like OpenAI/OpenRouter
+    let content = data.choices && data.choices[0]?.message?.content
+      ? data.choices[0].message.content
+      : (typeof data === "string" ? data : "");
+
+    tokens_used = data.usage?.total_tokens || 0;
+
+    // Try parsing as JSON (per prompt)
     try {
-      result_json = JSON.parse(openaiResult.choices[0].message.content);
-    } catch (e) {
-      result_json = { proposal: openaiResult.choices[0].message.content };
+      result_json = JSON.parse(content);
+    } catch {
+      result_json = { proposal: content };
     }
-  } catch (err) {
+
+  } catch (err: any) {
     return new Response(
-      JSON.stringify({ error: `AI generation failed: ${(err as Error).message}` }),
+      JSON.stringify({ error: `AI generation failed: ${err?.message || errorMsg || "unknown error"}` }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 
-  // Save to ai_usage_logs
+  // Save usage log
   await supabase.from("ai_usage_logs").insert({
     user_id,
     type,
     model_used,
     input_hash,
-    tokens_used: openaiTokens,
+    tokens_used,
     result_json,
   });
 
   return new Response(
-    JSON.stringify({ ...result_json, model, tokens_used: openaiTokens, deduped: false }),
-    {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    }
+    JSON.stringify({ ...result_json, model: model_used, tokens_used, deduped: false }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 });
