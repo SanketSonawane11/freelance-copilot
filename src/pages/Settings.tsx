@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +40,27 @@ const Settings = () => {
     return { upi: '', account: '', ifsc: '' };
   };
   
+  // --- Normalization helper for settings from Supabase ---
+  function normalizeSettings(raw: any) {
+    // fallback to default if any field is null or missing
+    return {
+      user_id: raw?.user_id || '',
+      business_name: raw?.business_name || '',
+      gst_number: raw?.gst_number || '',
+      address: raw?.address || '',
+      bank_details: parseBankDetails(raw?.bank_details),
+      default_currency: raw?.default_currency || 'INR',
+      // Cast tax_regime defensively to allowed union
+      tax_regime: (raw?.tax_regime === "44ADA" || raw?.tax_regime === "Regular" || raw?.tax_regime === "NotSure")
+        ? raw.tax_regime
+        : "NotSure",
+      quarterly_reminder: typeof raw?.quarterly_reminder === "boolean" ? raw.quarterly_reminder : false,
+      proposal_tips_optin: typeof raw?.proposal_tips_optin === "boolean" ? raw.proposal_tips_optin : true,
+      tax_reminder_optin: typeof raw?.tax_reminder_optin === "boolean" ? raw.tax_reminder_optin : true,
+      invoice_alerts_optin: typeof raw?.invoice_alerts_optin === "boolean" ? raw.invoice_alerts_optin : true,
+    };
+  }
+  
   // Initialize with proper default values to avoid TypeScript errors
   const [localSettings, setLocalSettings] = useState({
     user_id: '',
@@ -65,11 +85,7 @@ const Settings = () => {
 
   React.useEffect(() => {
     if (data?.settings) {
-      setLocalSettings(prev => ({ 
-        ...prev, 
-        ...data.settings,
-        bank_details: parseBankDetails(data.settings.bank_details)
-      }));
+      setLocalSettings(normalizeSettings(data.settings));
     }
     if (data?.profile) {
       setLocalProfile(prev => ({ ...prev, ...data.profile }));
