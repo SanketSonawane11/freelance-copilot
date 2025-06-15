@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
+import { PDFInvoiceDownload } from "./PDFInvoice";
 
 interface InvoiceItem {
   description: string;
@@ -35,6 +36,10 @@ export const InvoiceGenerator = () => {
     { description: "", quantity: 1, rate: 0, amount: 0 }
   ]);
   const [notes, setNotes] = useState("");
+
+  // PDF download state
+  const [showDownload, setShowDownload] = useState(false);
+  const [cachedPdfData, setCachedPdfData] = useState<any>(null);
 
   // Fetch recent invoices
   const { data: recentInvoices, isLoading } = useQuery({
@@ -68,12 +73,10 @@ export const InvoiceGenerator = () => {
   const updateItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
     const updatedItems = [...items];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
-    
     // Calculate amount for this item
     if (field === 'quantity' || field === 'rate') {
       updatedItems[index].amount = updatedItems[index].quantity * updatedItems[index].rate;
     }
-    
     setItems(updatedItems);
   };
 
@@ -87,6 +90,31 @@ export const InvoiceGenerator = () => {
 
   const calculateTotal = () => {
     return calculateSubtotal() + calculateGST();
+  };
+
+  // Helper to shape invoice data for PDFInvoiceDownload
+  const getInvoicePdfData = () => {
+    // Gather user "from" info from the profile if available (fallback to email)
+    const freelancerName = user?.user_metadata?.name || user?.email?.split('@')[0] || "Freelancer";
+    const freelancerEmail = user?.email || "";
+    // You could optionally store address/gstNumber in a profile/settings table.
+    return {
+      invoiceNumber,
+      clientName,
+      clientEmail,
+      issueDate: issueDate || "",
+      dueDate: dueDate || "",
+      items,
+      subtotal: calculateSubtotal(),
+      gstEnabled: isGSTEnabled,
+      gstAmount: isGSTEnabled ? calculateGST() : undefined,
+      total: calculateTotal(),
+      freelancerName,
+      freelancerEmail,
+      freelancerAddress: "", // Could fetch from user settings if available
+      gstNumber: gstNumber || undefined,
+      notes: notes || "",
+    };
   };
 
   const handleGenerateInvoice = async () => {
@@ -116,13 +144,17 @@ export const InvoiceGenerator = () => {
 
       toast.success("Invoice generated successfully! 📄");
       
-      // Reset form
-      setClientName("");
-      setClientEmail("");
-      setClientAddress("");
-      setInvoiceNumber(`INV-${Date.now()}`);
-      setItems([{ description: "", quantity: 1, rate: 0, amount: 0 }]);
-      setNotes("");
+      // Cache data for PDF
+      setCachedPdfData(getInvoicePdfData());
+      setShowDownload(true);
+
+      // Optionally reset form here (only after downloading PDF, up to you!)
+      // setClientName("");
+      // setClientEmail("");
+      // setClientAddress("");
+      // setInvoiceNumber(`INV-${Date.now()}`);
+      // setItems([{ description: "", quantity: 1, rate: 0, amount: 0 }]);
+      // setNotes("");
     } catch (error) {
       console.error('Error generating invoice:', error);
       toast.error("Failed to generate invoice");
@@ -159,7 +191,6 @@ export const InvoiceGenerator = () => {
           <p className="text-gray-600">Create professional invoices with GST compliance</p>
         </div>
       </div>
-
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Invoice Form */}
         <div className="lg:col-span-2 space-y-6">
@@ -375,6 +406,14 @@ export const InvoiceGenerator = () => {
                   <Download className="w-4 h-4 mr-2" />
                   Generate PDF
                 </Button>
+                {showDownload && cachedPdfData && (
+                  <div className="mt-2 flex">
+                    <PDFInvoiceDownload
+                      data={cachedPdfData}
+                      fileName={`${cachedPdfData.invoiceNumber}.pdf`}
+                    />
+                  </div>
+                )}
                 <Button 
                   onClick={handleSendInvoice}
                   variant="outline" 
@@ -386,7 +425,6 @@ export const InvoiceGenerator = () => {
               </div>
             </CardContent>
           </Card>
-
           {/* Recent Invoices */}
           <Card>
             <CardHeader>
