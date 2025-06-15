@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,7 @@ import { TaxEstimator } from "@/components/TaxEstimator";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserData } from "@/hooks/useUserData";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 export const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -39,8 +39,8 @@ export const Dashboard = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 flex items-center justify-center">
         <div className="text-center animate-fade-in">
           <div className="relative w-16 h-16 mx-auto mb-6">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400 rounded-2xl opacity-20 blur-xl animate-pulse"></div>
-            <div className="relative w-16 h-16 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-2xl opacity-20 blur-xl animate-pulse"></div>
+            <div className="relative w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center backdrop-blur-sm">
               <Brain className="w-8 h-8 text-white animate-pulse" />
             </div>
           </div>
@@ -116,8 +116,8 @@ export const Dashboard = () => {
         <div className="flex justify-between items-center px-6 py-4">
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400 rounded-xl opacity-20 blur-lg"></div>
-              <div className="relative w-10 h-10 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 rounded-xl flex items-center justify-center">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-xl opacity-20 blur-lg"></div>
+              <div className="relative w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
                 <Brain className="w-6 h-6 text-white" />
               </div>
             </div>
@@ -136,9 +136,11 @@ export const Dashboard = () => {
             <span className="text-sm text-slate-600 font-medium">
               {userData?.profile?.name || user?.email?.split('@')[0]}
             </span>
-            <Button variant="ghost" size="sm" className="hover:bg-white/50 transition-all duration-300">
-              <Settings className="w-4 h-4" />
-            </Button>
+            <Link to="/settings">
+              <Button variant="ghost" size="sm" className="hover:bg-white/50 transition-all duration-300">
+                <Settings className="w-4 h-4" />
+              </Button>
+            </Link>
             <Button variant="ghost" size="sm" onClick={handleSignOut} className="hover:bg-red-50/50 transition-all duration-300">
               <LogOut className="w-4 h-4" />
             </Button>
@@ -224,7 +226,7 @@ export const Dashboard = () => {
                   </h1>
                   <p className="text-slate-600 mt-1">Your AI-powered freelance command center</p>
                 </div>
-                <Button className="bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 hover:from-blue-600 hover:via-purple-600 hover:to-emerald-600 text-white shadow-lg shadow-purple-500/25 transition-all duration-300">
+                <Button className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-purple-500/25 transition-all duration-300">
                   <Sparkles className="w-4 h-4 mr-2" />
                   Quick Action
                 </Button>
