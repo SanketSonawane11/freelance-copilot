@@ -10,7 +10,9 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY")!;
+// Use ChatGPT API key if provided
+const CHATGPT_API_KEY = Deno.env.get("CHATGPT_API_KEY");
+const OPENAI_KEY = CHATGPT_API_KEY || Deno.env.get("OPENAI_API_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -94,7 +96,7 @@ Urgency: ${formInputs.urgency || "Medium"}`;
   let model = "gpt-4o-mini";
   if (plan === "pro" && prefer_gpt4o) model = "gpt-4o";
 
-  let openaiRes, openaiTokens = 0, model_used = model, result_json = {};
+  let openaiTokens = 0, model_used = model, result_json = {};
   let openai_body = {
     model,
     messages: [
@@ -115,13 +117,17 @@ Urgency: ${formInputs.urgency || "Medium"}`;
     const openaiResult = await openaiFetch.json();
     // Handle OpenAI errors
     if (openaiResult.error) {
-      throw new Error(openaiResult.error.message || "OpenAI API error");
+      throw new Error(openaiResult.error.message || "ChatGPT API error");
     }
     openaiTokens = openaiResult.usage?.total_tokens || 0;
-    result_json = JSON.parse(openaiResult.choices[0].message.content);
+    try {
+      result_json = JSON.parse(openaiResult.choices[0].message.content);
+    } catch (e) {
+      result_json = { proposal: openaiResult.choices[0].message.content };
+    }
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: `AI generation failed: ${err.message}` }),
+      JSON.stringify({ error: `AI generation failed: ${(err as Error).message}` }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

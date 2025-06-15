@@ -82,7 +82,9 @@ export const ProposalWriter = () => {
       );
       const json = await res.json();
       if (json.error) throw new Error(json.error);
-      setGeneratedProposal(json.proposal);
+
+      // Fix: Always set proposal, even if plain string fallback
+      setGeneratedProposal(json.proposal || (typeof json === "string" ? json : ""));
       setUsedTokens(json.tokens_used ?? null);
       setAiModel(json.model ?? null);
       setIsGenerating(false);
