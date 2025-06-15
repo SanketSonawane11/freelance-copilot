@@ -70,19 +70,23 @@ export const Dashboard = () => {
   const subscriptionTier = userData?.billingInfo?.current_plan || userData?.profile?.subscription_tier || 'starter';
   const proposalLimit = subscriptionTier === 'pro' ? 100 : 10;
   const followupLimit = subscriptionTier === 'pro' ? 100 : 10;
-  
+
+  // Get up-to-date counts from usage_stats table (migrated logic)
+  const proposalsUsed = userData?.usageStats?.proposals_used ?? 0;
+  const followupsUsed = userData?.usageStats?.followups_used ?? 0;
+
   const stats = [
     { 
       label: "AI Proposals", 
-      value: `${userData?.proposalsCount || 0}/${proposalLimit}`, 
-      progress: ((userData?.proposalsCount || 0) / proposalLimit) * 100, 
+      value: `${proposalsUsed}/${proposalLimit}`, 
+      progress: (proposalsUsed / proposalLimit) * 100, 
       color: "from-blue-400 to-cyan-400",
       icon: FileText
     },
     { 
       label: "Smart Follow-ups", 
-      value: `${userData?.followupsCount || 0}/${followupLimit}`, 
-      progress: ((userData?.followupsCount || 0) / followupLimit) * 100, 
+      value: `${followupsUsed}/${followupLimit}`, 
+      progress: (followupsUsed / followupLimit) * 100, 
       color: "from-emerald-400 to-teal-400",
       icon: MessageSquare
     },
