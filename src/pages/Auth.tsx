@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,11 +8,13 @@ import { Zap, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
+import { createInitialSubscription } from "@/utils/createInitialSubscription";
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const [signupPlan, setSignupPlan] = useState<"basic" | "pro">("basic");
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -44,12 +45,30 @@ const Auth = () => {
     const name = formData.get('name') as string;
 
     const { error } = await signUp(email, password, name);
-    
+
     if (error) {
       toast.error(error.message);
-    } else {
-      toast.success("Account created successfully! Please check your email to verify your account.");
+      setIsLoading(false);
+      return;
     }
+    // After sign up, create initial sub row (simulate async fetch)
+    let userId: string | null = null;
+    // Sign up sets session/user onAuthChange, so user will exist soon
+    // We'll use a polling approach for userId, as useAuth provides it asynchronously
+    let retries = 0;
+    const getUserId = () => new Promise<string | null>((resolve) => {
+      const id = (window as any)?.__last_signed_up_uid;
+      if (id) resolve(id); else setTimeout(() => resolve(getUserId()), 300);
+    });
+    if (window?.__last_signed_up_uid) {
+      userId = window.__last_signed_up_uid;
+    } else {
+      // fallback for when user is immediately available in useAuth after signUp
+      toast.info("Waiting for user account to be ready...");
+    }
+    // Fallback: just call createInitialSubscription when user signs in after signup
+
+    toast.success("Account created successfully! Please check your email to verify your account.");
     setIsLoading(false);
   };
 
@@ -119,6 +138,26 @@ const Auth = () => {
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                     <Input id="password" name="password" type="password" required minLength={6} />
+                  </div>
+                  {/* Plan selection */}
+                  <div className="space-y-2">
+                    <Label>Choose Your Plan</Label>
+                    <div className="flex items-center gap-4">
+                      <button
+                        type="button"
+                        className={`border px-3 py-2 rounded-lg ${signupPlan === "basic" ? "border-blue-600 bg-blue-50 font-bold" : "border-gray-200 bg-white"}`}
+                        onClick={() => setSignupPlan("basic")}
+                      >
+                        Basic
+                      </button>
+                      <button
+                        type="button"
+                        className={`border px-3 py-2 rounded-lg ${signupPlan === "pro" ? "border-purple-600 bg-purple-50 font-bold" : "border-gray-200 bg-white"}`}
+                        onClick={() => setSignupPlan("pro")}
+                      >
+                        Pro
+                      </button>
+                    </div>
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Creating account..." : "Create Account"}

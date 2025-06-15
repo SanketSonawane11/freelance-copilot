@@ -1,9 +1,9 @@
-
 import React from "react";
 import { Brain } from "lucide-react";
 import { useSettingsPage } from "@/hooks/useSettingsPage";
 import { SettingsHeader } from "@/components/settings/SettingsHeader";
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
+import { useSubscription } from "@/hooks/useSubscription";
 
 const Settings = () => {
   const {
@@ -23,8 +23,9 @@ const Settings = () => {
     isExporting,
     isDeleting
   } = useSettingsPage();
+  const { data: subscription, isLoading: subLoading } = useSubscription();
 
-  if (isLoading) {
+  if (isLoading || subLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 flex items-center justify-center">
         <div className="text-center animate-fade-in">
@@ -42,8 +43,35 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
-      <SettingsHeader currentPlan={data?.billing?.current_plan || "starter"} />
+      <SettingsHeader currentPlan={subscription?.plan || "starter"} />
       <div className="container mx-auto px-6 py-8 max-w-4xl">
+        <div className="mb-8">
+          <h3 className="font-bold text-xl mb-2">Your Subscription</h3>
+          <div className="flex items-center gap-6">
+            <span className={`px-3 py-1 rounded-full text-white font-semibold ${subscription?.plan === "pro"
+              ? "bg-gradient-to-r from-purple-500 to-pink-500"
+              : "bg-gradient-to-r from-blue-500 to-green-500"
+            }`}>
+              {subscription?.plan === "pro" ? "Pro Plan" : "Basic Plan"}
+            </span>
+            <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">
+              Status: {subscription?.subscription_status || "none"}
+            </span>
+            <span className="text-sm text-gray-600">
+              Expires: {subscription?.current_period_end
+                ? new Date(subscription.current_period_end).toLocaleDateString()
+                : "N/A"}
+            </span>
+            <button
+              className="ml-4 text-blue-600 hover:text-blue-800 font-medium underline"
+              // TODO: Implement upgrade/downgrade flow, call backend in Stage 2
+              onClick={() => window.alert("Change plan coming soon!")}
+            >
+              {subscription?.plan === "pro" ? "Downgrade to Basic" : "Upgrade to Pro"}
+            </button>
+          </div>
+        </div>
+
         <SettingsTabs
           user={user}
           data={data}
