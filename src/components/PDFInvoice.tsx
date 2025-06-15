@@ -82,7 +82,7 @@ interface InvoiceData {
   gstNumber?: string;
 }
 
-// Export InvoicePDF as a named export here
+// Single, clean export for InvoicePDF
 export const InvoicePDF = ({ data }: { data: InvoiceData }) => (
   <Document>
     <Page size="A4" style={styles.page}>
@@ -141,6 +141,7 @@ export const InvoicePDF = ({ data }: { data: InvoiceData }) => (
   </Document>
 );
 
+// Keep PDFInvoiceDownload as is
 export const PDFInvoiceDownload = ({ data, fileName }: { data: InvoiceData; fileName: string }) => (
   <PDFDownloadLink
     document={<InvoicePDF data={data} />}
