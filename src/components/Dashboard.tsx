@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,9 +25,18 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
 export const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState("overview");
+  // Initialize state from localStorage or default to "overview"
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem("dashboard-active-tab") || "overview";
+  });
+  
   const { user, signOut } = useAuth();
   const { data: userData, isLoading } = useUserData();
+
+  // Update localStorage whenever activeTab changes
+  useEffect(() => {
+    localStorage.setItem("dashboard-active-tab", activeTab);
+  }, [activeTab]);
 
   const handleSignOut = async () => {
     await signOut();
