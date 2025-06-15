@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import { FileText, Sparkles, Copy, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useUserData } from "@/hooks/useUserData";
 import { useUsageLimit } from "@/hooks/useUsageLimit";
+import { supabase } from "@/integrations/supabase/client";
 
 export const ProposalWriter = () => {
   const [projectDetails, setProjectDetails] = useState("");
@@ -58,49 +58,46 @@ export const ProposalWriter = () => {
       return;
     }
 
-    // Call dynamic AI backend
+    // Use Supabase client to call edge function (fix 401 error)
     try {
-      const res = await fetch(
-        `https://ckphagoaqnpqkaoghcyz.functions.supabase.co/generate-ai-content`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "proposal",
-            formInputs: {
-              clientInfo,
-              projectType,
-              projectDetails,
-              budget,
-              timeline,
-              tone
-            },
-            plan: subscriptionTier === "pro" ? "pro" : "starter",
-            user_id: userData?.profile?.id,
-            prefer_gpt4o: false
-          }),
+      const { data: json, error } = await supabase.functions.invoke("generate-ai-content", {
+        body: {
+          type: "proposal",
+          formInputs: {
+            clientInfo,
+            projectType,
+            projectDetails,
+            budget,
+            timeline,
+            tone
+          },
+          plan: subscriptionTier === "pro" ? "pro" : "starter",
+          user_id: userData?.profile?.id,
+          prefer_gpt4o: false
         }
-      );
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
+      });
 
-      // Fix: Normalize proposal extraction
+      if (error) throw new Error(error.message || "AI generation error");
+      if (!json) throw new Error("Empty AI response");
+
+      // Normalize proposal extraction (again for safety)
       let proposalText = '';
       if (typeof json === 'string') {
         proposalText = json;
-      } else if (json.proposal) {
-        proposalText = json.proposal;
-      } else if (json.choices && Array.isArray(json.choices) && json.choices[0]?.message?.content) {
-        proposalText = json.choices[0].message.content;
+      } else if ((json as any).proposal) {
+        proposalText = (json as any).proposal;
+      } else if ((json as any).choices && Array.isArray((json as any).choices) && (json as any).choices[0]?.message?.content) {
+        proposalText = (json as any).choices[0].message.content;
       } else {
         proposalText = JSON.stringify(json);
       }
+
       setGeneratedProposal(proposalText);
-      setUsedTokens(json.tokens_used ?? null);
-      setAiModel(json.model ?? null);
+      setUsedTokens((json as any).tokens_used ?? null);
+      setAiModel((json as any).model ?? null);
 
       setIsGenerating(false);
-      toast.success(json.deduped ? "Reused previous proposal!" : "Proposal generated successfully! ✨");
+      toast.success((json as any).deduped ? "Reused previous proposal!" : "Proposal generated successfully! ✨");
     } catch (e: any) {
       setIsGenerating(false);
       toast.error(e?.message || "AI generation error.");
