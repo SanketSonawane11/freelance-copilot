@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageSquare, Clock, Copy, RefreshCw, Send } from "lucide-react";
 import { toast } from "sonner";
+import { useUserData } from "@/hooks/useUserData";
 
 export const FollowUpGenerator = () => {
   const [clientName, setClientName] = useState("");
@@ -19,6 +19,12 @@ export const FollowUpGenerator = () => {
   const [urgency, setUrgency] = useState("medium");
   const [generatedMessage, setGeneratedMessage] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Fetch dynamic followup usage
+  const { data: userData, isLoading: loadingUser } = useUserData();
+  const subscriptionTier = userData?.billingInfo?.current_plan || userData?.profile?.subscription_tier || 'starter';
+  const followupLimit = subscriptionTier === 'pro' ? 100 : 10;
+  const followupsUsed = userData?.followupsCount || 0;
 
   const handleGenerate = async () => {
     if (!clientName || !projectTitle) {
@@ -89,7 +95,9 @@ Best regards,
           <p className="text-gray-600">Generate personalized follow-up messages with perfect timing</p>
         </div>
         <Badge variant="outline" className="text-green-600 border-green-200">
-          5/10 follow-ups used this month
+          {loadingUser
+            ? "Loading..."
+            : `${followupsUsed}/${followupLimit} follow-ups used this month`}
         </Badge>
       </div>
 

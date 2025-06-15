@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Sparkles, Copy, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { useUserData } from "@/hooks/useUserData";
 
 export const ProposalWriter = () => {
   const [projectDetails, setProjectDetails] = useState("");
@@ -19,6 +19,12 @@ export const ProposalWriter = () => {
   const [tone, setTone] = useState("professional");
   const [generatedProposal, setGeneratedProposal] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Fetch dynamic proposal usage
+  const { data: userData, isLoading: loadingUser } = useUserData();
+  const subscriptionTier = userData?.billingInfo?.current_plan || userData?.profile?.subscription_tier || 'starter';
+  const proposalLimit = subscriptionTier === 'pro' ? 100 : 10;
+  const proposalsUsed = userData?.proposalsCount || 0;
 
   const handleGenerate = async () => {
     if (!projectDetails || !clientInfo) {
@@ -92,7 +98,9 @@ Best regards,
           <p className="text-gray-600">Generate compelling proposals that win clients</p>
         </div>
         <Badge variant="outline" className="text-blue-600 border-blue-200">
-          7/10 proposals used this month
+          {loadingUser
+            ? "Loading..."
+            : `${proposalsUsed}/${proposalLimit} proposals used this month`}
         </Badge>
       </div>
 
