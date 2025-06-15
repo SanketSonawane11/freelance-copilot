@@ -21,6 +21,10 @@ export const FollowUpGenerator = () => {
   const [generatedMessage, setGeneratedMessage] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Add for AI generation
+  const [usedTokens, setUsedTokens] = useState<number | null>(null);
+  const [aiModel, setAiModel] = useState<string | null>(null);
+
   // Fetch dynamic followup usage
   const { data: userData, isLoading: loadingUser } = useUserData();
   const subscriptionTier = userData?.billingInfo?.current_plan || userData?.profile?.subscription_tier || 'starter';
@@ -44,8 +48,9 @@ export const FollowUpGenerator = () => {
     }
 
     setIsGenerating(true);
+    setUsedTokens(null);
+    setAiModel(null);
 
-    // Increment usage BEFORE generating
     try {
       await usageLimit.increment();
     } catch (err: any) {
@@ -54,41 +59,40 @@ export const FollowUpGenerator = () => {
       return;
     }
 
-    // Simulate AI generation
-    setTimeout(() => {
-      const urgencyText = urgency === "high" ? "I wanted to quickly follow up" : 
-                         urgency === "low" ? "I hope you're doing well and wanted to gently follow up" :
-                         "I hope this message finds you well";
-
-      const reasonText = followUpReason === "payment" ? "regarding the pending payment for" :
-                        followUpReason === "proposal" ? "on the proposal I sent for" :
-                        followUpReason === "update" ? "to provide an update on" :
-                        "regarding";
-
-      const sampleMessage = `Subject: ${urgency === "high" ? "Quick follow-up" : "Following up"} - ${projectTitle}
-
-Hi ${clientName},
-
-${urgencyText}. ${reasonText} ${projectTitle}.
-
-${followUpReason === "payment" ? 
-  "I wanted to check if you received the invoice and if there are any questions about the payment process. Please let me know if you need any additional information or documentation." :
-  followUpReason === "proposal" ? 
-  `It's been ${lastContact || "a few days"} since I submitted the proposal, and I wanted to see if you had a chance to review it. I'm excited about the possibility of working together and would be happy to discuss any questions or modifications you might have.` :
-  `I wanted to touch base and see if there are any updates or if you need any additional information from my side. I'm here to help and ensure everything moves forward smoothly.`}
-
-${tone === "friendly" ? "Looking forward to hearing from you soon! 😊" :
-  tone === "formal" ? "I look forward to your response at your earliest convenience." :
-  "Please let me know if you have any questions or need any clarification."}
-
-Best regards,
-[Your Name]
-[Your Contact Information]`;
-
-      setGeneratedMessage(sampleMessage);
+    // Call dynamic AI backend
+    try {
+      const res = await fetch(
+        `https://ckphagoaqnpqkaoghcyz.functions.supabase.co/generate-ai-content`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "followup",
+            formInputs: {
+              clientName,
+              projectTitle,
+              lastContact,
+              followUpReason,
+              tone,
+              urgency
+            },
+            plan: subscriptionTier === "pro" ? "pro" : "starter",
+            user_id: userData?.profile?.id,
+            prefer_gpt4o: false
+          }),
+        }
+      );
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setGeneratedMessage(json.followup);
+      setUsedTokens(json.tokens_used ?? null);
+      setAiModel(json.model ?? null);
       setIsGenerating(false);
-      toast.success("Follow-up message generated! 📧");
-    }, 1500);
+      toast.success(json.deduped ? "Reused previous follow-up!" : "Follow-up message generated! 📧");
+    } catch (e: any) {
+      setIsGenerating(false);
+      toast.error(e?.message || "AI generation error.");
+    }
   };
 
   const handleCopy = () => {
@@ -249,6 +253,11 @@ Best regards,
             <CardTitle>Generated Follow-up</CardTitle>
             <CardDescription>
               Ready-to-send message crafted for your situation
+              {aiModel && (
+                <span className="ml-2 bg-slate-100 px-2 py-1 rounded text-xs text-slate-600">
+                  Model: {aiModel} | Tokens: {usedTokens ?? "?"}
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>

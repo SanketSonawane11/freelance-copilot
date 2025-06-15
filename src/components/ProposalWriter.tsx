@@ -20,6 +20,8 @@ export const ProposalWriter = () => {
   const [tone, setTone] = useState("professional");
   const [generatedProposal, setGeneratedProposal] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [usedTokens, setUsedTokens] = useState<number | null>(null);
+  const [aiModel, setAiModel] = useState<string | null>(null);
 
   // Fetch dynamic proposal usage
   const { data: userData, isLoading: loadingUser } = useUserData();
@@ -44,8 +46,9 @@ export const ProposalWriter = () => {
     }
 
     setIsGenerating(true);
+    setUsedTokens(null);
+    setAiModel(null);
 
-    // Increment usage before generating
     try {
       await usageLimit.increment();
     } catch (err: any) {
@@ -54,42 +57,40 @@ export const ProposalWriter = () => {
       return;
     }
 
-    // Simulate AI generation
-    setTimeout(() => {
-      const sampleProposal = `Dear ${clientInfo || "Client"},
-
-I hope this message finds you well. I am excited to submit my proposal for your ${projectType || "project"}.
-
-## Understanding Your Needs
-Based on your requirements: ${projectDetails}
-
-## My Approach
-I will deliver a comprehensive solution that includes:
-- Detailed project planning and timeline
-- Regular communication and updates
-- Quality deliverables within the specified timeframe
-- Post-delivery support and revisions
-
-## Timeline & Investment
-Timeline: ${timeline || "To be discussed"}
-Investment: ${budget || "Competitive rates based on project scope"}
-
-## Why Choose Me?
-- 5+ years of experience in ${projectType || "relevant field"}
-- Proven track record with 200+ successful projects
-- 100% client satisfaction guarantee
-- GST invoicing available for Indian clients
-
-I would love to discuss this project further and answer any questions you may have.
-
-Best regards,
-[Your Name]
-[Your Contact Information]`;
-
-      setGeneratedProposal(sampleProposal);
+    // Call dynamic AI backend
+    try {
+      const res = await fetch(
+        `https://ckphagoaqnpqkaoghcyz.functions.supabase.co/generate-ai-content`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "proposal",
+            formInputs: {
+              clientInfo,
+              projectType,
+              projectDetails,
+              budget,
+              timeline,
+              tone
+            },
+            plan: subscriptionTier === "pro" ? "pro" : "starter",
+            user_id: userData?.profile?.id,
+            prefer_gpt4o: false
+          }),
+        }
+      );
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setGeneratedProposal(json.proposal);
+      setUsedTokens(json.tokens_used ?? null);
+      setAiModel(json.model ?? null);
       setIsGenerating(false);
-      toast.success("Proposal generated successfully! ✨");
-    }, 2000);
+      toast.success(json.deduped ? "Reused previous proposal!" : "Proposal generated successfully! ✨");
+    } catch (e: any) {
+      setIsGenerating(false);
+      toast.error(e?.message || "AI generation error.");
+    }
   };
 
   const handleCopy = () => {
@@ -238,6 +239,11 @@ Best regards,
             <CardTitle>Generated Proposal</CardTitle>
             <CardDescription>
               AI-crafted proposal ready to send
+              {aiModel && (
+                <span className="ml-2 bg-slate-100 px-2 py-1 rounded text-xs text-slate-600">
+                  Model: {aiModel} | Tokens: {usedTokens ?? "?"}
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
