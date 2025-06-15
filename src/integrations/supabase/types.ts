@@ -45,9 +45,12 @@ export type Database = {
       billing_info: {
         Row: {
           created_at: string | null
+          current_period_end: string | null
           current_plan: string | null
           razorpay_customer_id: string | null
+          razorpay_subscription_id: string | null
           renewal_date: string | null
+          subscription_status: string | null
           updated_at: string | null
           usage_followups: number | null
           usage_proposals: number | null
@@ -55,9 +58,12 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          current_period_end?: string | null
           current_plan?: string | null
           razorpay_customer_id?: string | null
+          razorpay_subscription_id?: string | null
           renewal_date?: string | null
+          subscription_status?: string | null
           updated_at?: string | null
           usage_followups?: number | null
           usage_proposals?: number | null
@@ -65,9 +71,12 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          current_period_end?: string | null
           current_plan?: string | null
           razorpay_customer_id?: string | null
+          razorpay_subscription_id?: string | null
           renewal_date?: string | null
+          subscription_status?: string | null
           updated_at?: string | null
           usage_followups?: number | null
           usage_proposals?: number | null
