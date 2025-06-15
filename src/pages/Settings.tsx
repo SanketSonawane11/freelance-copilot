@@ -34,15 +34,37 @@ import { toast } from "sonner";
 const Settings = () => {
   const { user } = useAuth();
   const { data, updateSettings, updateProfile, uploadAvatar, exportData, deleteAccount, isLoading, isUpdating, isUploading, isExporting, isDeleting } = useSettings();
-  const [localSettings, setLocalSettings] = useState(data?.settings || {});
-  const [localProfile, setLocalProfile] = useState(data?.profile || {});
+  
+  // Initialize with proper default values to avoid TypeScript errors
+  const [localSettings, setLocalSettings] = useState({
+    user_id: '',
+    business_name: '',
+    gst_number: '',
+    address: '',
+    bank_details: { upi: '', account: '', ifsc: '' },
+    default_currency: 'INR',
+    tax_regime: 'NotSure' as 'NotSure' | '44ADA' | 'Regular',
+    quarterly_reminder: false,
+    proposal_tips_optin: true,
+    tax_reminder_optin: true,
+    invoice_alerts_optin: true,
+    ...data?.settings
+  });
+  
+  const [localProfile, setLocalProfile] = useState({
+    id: '',
+    name: '',
+    profile_picture: null as string | null,
+    login_method: 'email',
+    ...data?.profile
+  });
 
   React.useEffect(() => {
     if (data?.settings) {
-      setLocalSettings(data.settings);
+      setLocalSettings(prev => ({ ...prev, ...data.settings }));
     }
     if (data?.profile) {
-      setLocalProfile(data.profile);
+      setLocalProfile(prev => ({ ...prev, ...data.profile }));
     }
   }, [data]);
 
@@ -159,7 +181,7 @@ const Settings = () => {
                 <div className="flex items-center space-x-6">
                   <div className="relative">
                     <Avatar className="w-20 h-20">
-                      <AvatarImage src={localProfile.profile_picture} />
+                      <AvatarImage src={localProfile.profile_picture || undefined} />
                       <AvatarFallback className="bg-gradient-to-r from-blue-400 to-purple-400 text-white text-lg">
                         {localProfile.name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
                       </AvatarFallback>

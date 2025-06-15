@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,27 +88,31 @@ export const Dashboard = () => {
     }
   ];
 
-  // Dynamic recent activity from real data
+  // Dynamic recent activity from real data - fix the type issues
   const recentActivity = [
     ...(userData?.recentProposals?.map(p => ({
       action: "Generated AI proposal",
       client: p.client_name || "Unnamed Client",
       time: new Date(p.created_at).toLocaleDateString(),
       type: "proposal",
-      status: p.status
+      status: p.status,
+      amount: undefined as string | undefined
     })) || []),
     ...(userData?.recentInvoices?.map(i => ({
       action: "Created invoice",
       client: i.client_name,
       time: new Date(i.created_at).toLocaleDateString(),
       type: "invoice",
-      amount: `₹${i.total_amount}`
+      amount: `₹${i.total_amount}`,
+      status: undefined as string | undefined
     })) || []),
     ...(userData?.recentTaxEstimations?.map(t => ({
       action: "Tax calculation",
       client: `₹${t.monthly_income} monthly`,
       time: new Date(t.created_at).toLocaleDateString(),
-      type: "tax"
+      type: "tax",
+      amount: undefined as string | undefined,
+      status: undefined as string | undefined
     })) || [])
   ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 4);
 
