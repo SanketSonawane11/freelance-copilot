@@ -282,8 +282,8 @@ const Index = () => {
         <div className="container mx-auto text-center">
           <div className="flex items-center justify-center space-x-3 mb-6">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400 rounded-xl opacity-20 blur-lg"></div>
-              <div className="relative w-10 h-10 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 rounded-xl flex items-center justify-center">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-xl opacity-20 blur-lg"></div>
+              <div className="relative w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
                 <Brain className="w-6 h-6 text-white" />
               </div>
             </div>
