@@ -35,6 +35,20 @@ const Settings = () => {
   const { user } = useAuth();
   const { data, updateSettings, updateProfile, uploadAvatar, exportData, deleteAccount, isLoading, isUpdating, isUploading, isExporting, isDeleting } = useSettings();
   
+  // Helper function to safely parse bank details
+  const parseBankDetails = (bankDetails: any) => {
+    if (!bankDetails) return { upi: '', account: '', ifsc: '' };
+    if (typeof bankDetails === 'string') {
+      try {
+        return JSON.parse(bankDetails);
+      } catch {
+        return { upi: '', account: '', ifsc: '' };
+      }
+    }
+    if (typeof bankDetails === 'object') return bankDetails;
+    return { upi: '', account: '', ifsc: '' };
+  };
+  
   // Initialize with proper default values to avoid TypeScript errors
   const [localSettings, setLocalSettings] = useState({
     user_id: '',
@@ -48,7 +62,8 @@ const Settings = () => {
     proposal_tips_optin: true,
     tax_reminder_optin: true,
     invoice_alerts_optin: true,
-    ...data?.settings
+    ...data?.settings,
+    bank_details: parseBankDetails(data?.settings?.bank_details)
   });
   
   const [localProfile, setLocalProfile] = useState({
@@ -61,7 +76,11 @@ const Settings = () => {
 
   React.useEffect(() => {
     if (data?.settings) {
-      setLocalSettings(prev => ({ ...prev, ...data.settings }));
+      setLocalSettings(prev => ({ 
+        ...prev, 
+        ...data.settings,
+        bank_details: parseBankDetails(data.settings.bank_details)
+      }));
     }
     if (data?.profile) {
       setLocalProfile(prev => ({ ...prev, ...data.profile }));
