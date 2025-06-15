@@ -51,8 +51,10 @@ export const Dashboard = () => {
     );
   }
 
-  const proposalLimit = userData?.profile?.subscription_tier === 'pro' ? 100 : 10;
-  const followupLimit = userData?.profile?.subscription_tier === 'pro' ? 100 : 10;
+  // Use billing info for subscription tier and limits
+  const subscriptionTier = userData?.billingInfo?.current_plan || userData?.profile?.subscription_tier || 'starter';
+  const proposalLimit = subscriptionTier === 'pro' ? 100 : 10;
+  const followupLimit = subscriptionTier === 'pro' ? 100 : 10;
   
   const stats = [
     { 
@@ -131,7 +133,7 @@ export const Dashboard = () => {
           <div className="flex items-center space-x-4">
             <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50/50 backdrop-blur-sm capitalize">
               <Sparkles className="w-3 h-3 mr-1" />
-              {userData?.profile?.subscription_tier || 'starter'}
+              {subscriptionTier}
             </Badge>
             <span className="text-sm text-slate-600 font-medium">
               {userData?.profile?.name || user?.email?.split('@')[0]}

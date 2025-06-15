@@ -9,6 +9,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      billing_info: {
+        Row: {
+          created_at: string | null
+          current_plan: string | null
+          razorpay_customer_id: string | null
+          renewal_date: string | null
+          updated_at: string | null
+          usage_followups: number | null
+          usage_proposals: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_plan?: string | null
+          razorpay_customer_id?: string | null
+          renewal_date?: string | null
+          updated_at?: string | null
+          usage_followups?: number | null
+          usage_proposals?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_plan?: string | null
+          razorpay_customer_id?: string | null
+          renewal_date?: string | null
+          updated_at?: string | null
+          usage_followups?: number | null
+          usage_proposals?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           created_at: string | null
@@ -236,7 +269,9 @@ export type Database = {
           id: string
           is_active: boolean | null
           last_active_at: string | null
+          login_method: string | null
           name: string | null
+          profile_picture: string | null
           subscription_tier: string | null
           tokens_used: number | null
         }
@@ -245,7 +280,9 @@ export type Database = {
           id: string
           is_active?: boolean | null
           last_active_at?: string | null
+          login_method?: string | null
           name?: string | null
+          profile_picture?: string | null
           subscription_tier?: string | null
           tokens_used?: number | null
         }
@@ -254,9 +291,59 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           last_active_at?: string | null
+          login_method?: string | null
           name?: string | null
+          profile_picture?: string | null
           subscription_tier?: string | null
           tokens_used?: number | null
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          address: string | null
+          bank_details: Json | null
+          business_name: string | null
+          created_at: string | null
+          default_currency: string | null
+          gst_number: string | null
+          invoice_alerts_optin: boolean | null
+          proposal_tips_optin: boolean | null
+          quarterly_reminder: boolean | null
+          tax_regime: string | null
+          tax_reminder_optin: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          bank_details?: Json | null
+          business_name?: string | null
+          created_at?: string | null
+          default_currency?: string | null
+          gst_number?: string | null
+          invoice_alerts_optin?: boolean | null
+          proposal_tips_optin?: boolean | null
+          quarterly_reminder?: boolean | null
+          tax_regime?: string | null
+          tax_reminder_optin?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          bank_details?: Json | null
+          business_name?: string | null
+          created_at?: string | null
+          default_currency?: string | null
+          gst_number?: string | null
+          invoice_alerts_optin?: boolean | null
+          proposal_tips_optin?: boolean | null
+          quarterly_reminder?: boolean | null
+          tax_regime?: string | null
+          tax_reminder_optin?: boolean | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -265,6 +352,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_user_account: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
+      export_user_data: {
+        Args: { user_uuid: string }
+        Returns: Json
+      }
       get_or_create_usage_stats: {
         Args: { user_uuid: string }
         Returns: {

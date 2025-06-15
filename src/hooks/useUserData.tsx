@@ -17,6 +17,13 @@ export const useUserData = () => {
       const { data: usageStats } = await supabase
         .rpc('get_or_create_usage_stats', { user_uuid: user.id });
 
+      // Get billing info (which now tracks usage)
+      const { data: billingInfo } = await supabase
+        .from('billing_info')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
       // Get proposals count for current month
       const { count: proposalsCount } = await supabase
         .from('proposals')
@@ -68,6 +75,7 @@ export const useUserData = () => {
 
       return {
         usageStats,
+        billingInfo,
         proposalsCount: proposalsCount || 0,
         followupsCount: followupsCount || 0,
         invoicesCount: invoicesCount || 0,
