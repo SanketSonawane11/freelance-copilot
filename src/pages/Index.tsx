@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +6,8 @@ import { ArrowRight, Brain, FileText, MessageSquare, Receipt, Calculator, Star, 
 import { Dashboard } from "@/components/Dashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
+import { motion, useMotionValue, useTransform, useAnimation } from "framer-motion";
+import { useEffect, useRef } from "react";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -33,13 +34,22 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
-      {/* Header with glass effect */}
-      <header className="backdrop-blur-xl bg-white/70 border-b border-white/20 sticky top-0 z-50 shadow-lg shadow-purple-500/5">
+      {/* Header with enhanced glass effect */}
+      <motion.header
+        initial={{ y: -40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.7, ease: "easeOut" }}
+        className="backdrop-blur-md bg-white/60 border-b border-white/30 sticky top-0 z-50 shadow-2xl shadow-purple-500/10 ring-1 ring-white/30 ring-inset"
+        style={{
+          WebkitBackdropFilter: 'blur(24px)',
+          backdropFilter: 'blur(8px)',
+        }}
+      >
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400 rounded-xl opacity-20 blur-lg"></div>
-              <div className="relative w-10 h-10 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 rounded-xl flex items-center justify-center">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-600 rounded-xl opacity-20 blur-lg animate-pulse"></div>
+              <div className="relative w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
                 <Brain className="w-6 h-6 text-white" />
               </div>
             </div>
@@ -51,49 +61,18 @@ const Index = () => {
             </div>
           </div>
           <Link to="/auth">
-            <Button className="bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 hover:from-blue-600 hover:via-purple-600 hover:to-emerald-600 text-white shadow-lg shadow-purple-500/25 transition-all duration-300">
+            <Button className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg shadow-purple-500/25 transition-all duration-300">
               <Sparkles className="w-4 h-4 mr-2" />
               Get Started
               <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </Link>
         </div>
-      </header>
+      </motion.header>
 
-      {/* Hero Section */}
+      {/* Hero Section with interactive animation */}
       <section className="py-20 px-4">
-        <div className="container mx-auto text-center max-w-4xl">
-          <Badge className="mb-6 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 hover:from-blue-200 hover:to-purple-200 border-blue-200 transition-all duration-300">
-            <Brain className="w-4 h-4 mr-2" />
-            🇮🇳 AI-Powered for Indian Freelancers
-          </Badge>
-          <h1 className="text-5xl font-bold text-slate-900 mb-6 leading-tight">
-            Your Neural-Powered
-            <span className="bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 bg-clip-text text-transparent block mt-2">
-              Freelance Copilot
-            </span>
-          </h1>
-          <p className="text-xl text-slate-600 mb-8 leading-relaxed">
-            Harness the power of AI to eliminate mental overhead and amplify productivity. 
-            Smart proposals, intelligent follow-ups, automated invoicing, and tax insights — 
-            all in one serene, neural-enhanced workspace.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/auth">
-              <Button 
-                size="lg" 
-                className="bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 hover:from-blue-600 hover:via-purple-600 hover:to-emerald-600 text-white text-lg px-8 py-6 shadow-xl shadow-purple-500/25 transition-all duration-300"
-              >
-                <Sparkles className="w-5 h-5 mr-2" />
-                Begin Neural Journey
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-            </Link>
-            <Button variant="outline" size="lg" className="text-lg px-8 py-6 backdrop-blur-sm bg-white/50 border-white/30 hover:bg-white/70 transition-all duration-300">
-              Watch AI Demo
-            </Button>
-          </div>
-        </div>
+        <InteractiveHero />
       </section>
 
       {/* Features Grid with glass effects */}
@@ -322,6 +301,119 @@ const Index = () => {
         </div>
       </footer>
     </div>
+  );
+};
+
+// InteractiveHero component for animated hero section
+const InteractiveHero = () => {
+  const containerRef = useRef(null);
+  const [mouse, setMouse] = useState({ x: 0, y: 0 });
+
+  // Mouse parallax effect
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    const rect = (containerRef.current as HTMLDivElement)?.getBoundingClientRect();
+    if (!rect) return;
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    setMouse({ x, y });
+  };
+
+  // Animation variants
+  const badgeVariants = {
+    initial: { opacity: 0, y: 30 },
+    animate: { opacity: 1, y: 0, transition: { delay: 0.1, duration: 0.7, type: "spring" } },
+    hover: (mouse: { x: number; y: number }) => ({
+      x: mouse.x * 0.01,
+      y: mouse.y * 0.01,
+      scale: 1.05,
+      transition: { type: "spring", stiffness: 200, damping: 20 },
+    }),
+  };
+  const headlineVariants = {
+    initial: { opacity: 0, y: 40 },
+    animate: { opacity: 1, y: 0, transition: { delay: 0.2, duration: 0.8, type: "spring" } },
+    hover: (mouse: { x: number; y: number }) => ({
+      x: mouse.x * 0.03,
+      y: mouse.y * 0.03,
+      scale: 1.02,
+      transition: { type: "spring", stiffness: 180, damping: 18 },
+    }),
+  };
+  const paraVariants = {
+    initial: { opacity: 0, y: 30 },
+    animate: { opacity: 1, y: 0, transition: { delay: 0.35, duration: 0.7, type: "spring" } },
+  };
+  const buttonVariants = {
+    initial: { opacity: 0, y: 30 },
+    animate: { opacity: 1, y: 0, transition: { delay: 0.5, duration: 0.7, type: "spring" } },
+    hover: (mouse: { x: number; y: number }) => ({
+      x: mouse.x * 0.01,
+      y: mouse.y * 0.01,
+      scale: 1.04,
+      transition: { type: "spring", stiffness: 220, damping: 22 },
+    }),
+  };
+
+  return (
+    <motion.div
+      ref={containerRef}
+      className="container mx-auto text-center max-w-4xl relative"
+      onMouseMove={handleMouseMove}
+      initial="initial"
+      whileInView="animate"
+      viewport={{ once: true, amount: 0.7 }}
+    >
+      <motion.div
+        className="inline-block"
+        variants={badgeVariants}
+        custom={mouse}
+        whileHover="hover"
+      >
+        <Badge className="mb-6 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 hover:from-blue-200 hover:to-purple-200 border-blue-200 transition-all duration-300 cursor-pointer">
+          <Brain className="w-4 h-4 mr-2" />
+          🇮🇳 AI-Powered for Indian Freelancers
+        </Badge>
+      </motion.div>
+      <motion.h1
+        className="text-5xl font-bold text-slate-900 mb-6 leading-tight select-none"
+        variants={headlineVariants}
+        custom={mouse}
+        whileHover="hover"
+      >
+        Your Neural-Powered
+        <span className="bg-gradient-to-r from-blue-500 via-purple-700 bg-clip-text text-transparent block mt-2">
+          Freelance Copilot
+        </span>
+      </motion.h1>
+      <motion.p
+        className="text-xl text-slate-600 mb-8 leading-relaxed"
+        variants={paraVariants}
+      >
+        Harness the power of AI to eliminate mental overhead and amplify productivity. 
+        Smart proposals, intelligent follow-ups, automated invoicing, and tax insights — 
+        all in one serene, neural-enhanced workspace.
+      </motion.p>
+      <motion.div
+        className="flex flex-col sm:flex-row gap-4 justify-center"
+        variants={buttonVariants}
+        custom={mouse}
+        whileHover="hover"
+      >
+        <Link to="/auth">
+          <Button 
+            size="lg" 
+            className="bg-gradient-to-r from-blue-500 to-purple-500  hover:from-blue-600 hover:to-purple-700 text-white text-lg px-8 py-6 shadow-xl shadow-purple-500/25 transition-all duration-300"
+          >
+            <Sparkles className="w-5 h-5 mr-2" />
+            Begin Neural Journey
+            <ArrowRight className="ml-2 w-5 h-5" />
+          </Button>
+        </Link>
+        <Button variant="outline" size="lg" className="text-lg px-8 py-6 backdrop-blur-sm bg-white/50 border-white/30 hover:bg-white/70 transition-all duration-300">
+          Watch AI Demo
+        </Button>
+      </motion.div>
+    </motion.div>
   );
 };
 
