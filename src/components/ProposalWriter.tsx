@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FileText, Sparkles, Copy, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useUserData } from "@/hooks/useUserData";
+import { useUsageLimit } from "@/hooks/useUsageLimit";
 
 export const ProposalWriter = () => {
   const [projectDetails, setProjectDetails] = useState("");
@@ -26,14 +27,33 @@ export const ProposalWriter = () => {
   const proposalLimit = subscriptionTier === 'pro' ? 100 : 10;
   const proposalsUsed = userData?.proposalsCount || 0;
 
+  const usageLimit = useUsageLimit("proposal");
+
   const handleGenerate = async () => {
     if (!projectDetails || !clientInfo) {
       toast.error("Please fill in project details and client information");
       return;
     }
+    if (usageLimit.isLoading) {
+      toast.loading("Checking usage...");
+      return;
+    }
+    if (!usageLimit.canIncrement) {
+      toast.error("You have reached your monthly proposal limit for your plan.");
+      return;
+    }
 
     setIsGenerating(true);
-    
+
+    // Increment usage before generating
+    try {
+      await usageLimit.increment();
+    } catch (err: any) {
+      setIsGenerating(false);
+      toast.error(err?.message || "Limit error. Please try again later.");
+      return;
+    }
+
     // Simulate AI generation
     setTimeout(() => {
       const sampleProposal = `Dear ${clientInfo || "Client"},
@@ -98,9 +118,9 @@ Best regards,
           <p className="text-gray-600">Generate compelling proposals that win clients</p>
         </div>
         <Badge variant="outline" className="text-blue-600 border-blue-200">
-          {loadingUser
+          {usageLimit.isLoading
             ? "Loading..."
-            : `${proposalsUsed}/${proposalLimit} proposals used this month`}
+            : `${usageLimit.current}/${usageLimit.limit} proposals used this month`}
         </Badge>
       </div>
 

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MessageSquare, Clock, Copy, RefreshCw, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useUserData } from "@/hooks/useUserData";
+import { useUsageLimit } from "@/hooks/useUsageLimit";
 
 export const FollowUpGenerator = () => {
   const [clientName, setClientName] = useState("");
@@ -26,14 +27,33 @@ export const FollowUpGenerator = () => {
   const followupLimit = subscriptionTier === 'pro' ? 100 : 10;
   const followupsUsed = userData?.followupsCount || 0;
 
+  const usageLimit = useUsageLimit("followup");
+
   const handleGenerate = async () => {
     if (!clientName || !projectTitle) {
       toast.error("Please fill in client name and project title");
       return;
     }
+    if (usageLimit.isLoading) {
+      toast.loading("Checking usage...");
+      return;
+    }
+    if (!usageLimit.canIncrement) {
+      toast.error("You have reached your monthly follow-up limit for your plan.");
+      return;
+    }
 
     setIsGenerating(true);
-    
+
+    // Increment usage BEFORE generating
+    try {
+      await usageLimit.increment();
+    } catch (err: any) {
+      setIsGenerating(false);
+      toast.error(err?.message || "Limit error. Please try again later.");
+      return;
+    }
+
     // Simulate AI generation
     setTimeout(() => {
       const urgencyText = urgency === "high" ? "I wanted to quickly follow up" : 
@@ -55,8 +75,7 @@ ${followUpReason === "payment" ?
   "I wanted to check if you received the invoice and if there are any questions about the payment process. Please let me know if you need any additional information or documentation." :
   followUpReason === "proposal" ? 
   `It's been ${lastContact || "a few days"} since I submitted the proposal, and I wanted to see if you had a chance to review it. I'm excited about the possibility of working together and would be happy to discuss any questions or modifications you might have.` :
-  `I wanted to touch base and see if there are any updates or if you need any additional information from my side. I'm here to help and ensure everything moves forward smoothly.`
-}
+  `I wanted to touch base and see if there are any updates or if you need any additional information from my side. I'm here to help and ensure everything moves forward smoothly.`}
 
 ${tone === "friendly" ? "Looking forward to hearing from you soon! 😊" :
   tone === "formal" ? "I look forward to your response at your earliest convenience." :
@@ -95,9 +114,9 @@ Best regards,
           <p className="text-gray-600">Generate personalized follow-up messages with perfect timing</p>
         </div>
         <Badge variant="outline" className="text-green-600 border-green-200">
-          {loadingUser
+          {usageLimit.isLoading
             ? "Loading..."
-            : `${followupsUsed}/${followupLimit} follow-ups used this month`}
+            : `${usageLimit.current}/${usageLimit.limit} follow-ups used this month`}
         </Badge>
       </div>
 
