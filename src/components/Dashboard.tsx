@@ -23,6 +23,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserData } from "@/hooks/useUserData";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { QuickActionDropdown } from "@/components/QuickActionDropdown";
 
 export const Dashboard = () => {
   // Initialize state from localStorage or default to "overview"
@@ -41,6 +42,11 @@ export const Dashboard = () => {
   const handleSignOut = async () => {
     await signOut();
     toast.success("Signed out successfully");
+  };
+
+  // Handler for quick actions: switches active tab
+  const handleQuickAction = (tab: "proposals" | "followups" | "invoices" | "taxes") => {
+    setActiveTab(tab);
   };
 
   if (isLoading) {
@@ -241,10 +247,7 @@ export const Dashboard = () => {
                   </h1>
                   <p className="text-slate-600 mt-1">Your AI-powered freelance command center</p>
                 </div>
-                <Button className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-purple-500/25 transition-all duration-300">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Quick Action
-                </Button>
+                <QuickActionDropdown onAction={handleQuickAction} />
               </div>
 
               {/* Stats Grid with glass effect */}
