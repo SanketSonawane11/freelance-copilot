@@ -7,8 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Receipt, Download, Send, Plus, Trash2 } from "lucide-react";
+import { Receipt, Download, Send, Plus, Trash2, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { format } from "date-fns";
 
 interface InvoiceItem {
   description: string;
@@ -18,6 +22,7 @@ interface InvoiceItem {
 }
 
 export const InvoiceGenerator = () => {
+  const { user } = useAuth();
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientAddress, setClientAddress] = useState("");
@@ -30,6 +35,25 @@ export const InvoiceGenerator = () => {
     { description: "", quantity: 1, rate: 0, amount: 0 }
   ]);
   const [notes, setNotes] = useState("");
+
+  // Fetch recent invoices
+  const { data: recentInvoices, isLoading } = useQuery({
+    queryKey: ['recentInvoices', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error('No user');
+
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
 
   const addItem = () => {
     setItems([...items, { description: "", quantity: 1, rate: 0, amount: 0 }]);
@@ -65,14 +89,44 @@ export const InvoiceGenerator = () => {
     return calculateSubtotal() + calculateGST();
   };
 
-  const handleGenerateInvoice = () => {
+  const handleGenerateInvoice = async () => {
     if (!clientName || items.some(item => !item.description)) {
       toast.error("Please fill in client details and item descriptions");
       return;
     }
 
-    // In a real app, this would generate a PDF
-    toast.success("Invoice generated successfully! 📄");
+    if (!user?.id) {
+      toast.error("Please log in to generate invoices");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .insert({
+          user_id: user.id,
+          client_name: clientName,
+          invoice_number: invoiceNumber,
+          total_amount: calculateTotal(),
+          gst_enabled: isGSTEnabled,
+          issued_on: issueDate,
+        });
+
+      if (error) throw error;
+
+      toast.success("Invoice generated successfully! 📄");
+      
+      // Reset form
+      setClientName("");
+      setClientEmail("");
+      setClientAddress("");
+      setInvoiceNumber(`INV-${Date.now()}`);
+      setItems([{ description: "", quantity: 1, rate: 0, amount: 0 }]);
+      setNotes("");
+    } catch (error) {
+      console.error('Error generating invoice:', error);
+      toast.error("Failed to generate invoice");
+    }
   };
 
   const handleSendInvoice = () => {
@@ -81,6 +135,20 @@ export const InvoiceGenerator = () => {
       return;
     }
     toast.success("Invoice sent successfully! 📧");
+  };
+
+  const getInvoiceStatusColor = (totalAmount: number) => {
+    // Simple logic for demo - in real app this would be based on actual status
+    if (totalAmount > 50000) return 'text-green-600';
+    if (totalAmount > 25000) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getInvoiceStatus = (totalAmount: number) => {
+    // Simple logic for demo - in real app this would be based on actual status
+    if (totalAmount > 50000) return 'Paid';
+    if (totalAmount > 25000) return 'Pending';
+    return 'Overdue';
   };
 
   return (
@@ -325,30 +393,46 @@ export const InvoiceGenerator = () => {
               <CardTitle>Recent Invoices</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {[
-                  { number: "INV-001", client: "Tech Corp", amount: "₹50,000", status: "Paid" },
-                  { number: "INV-002", client: "Design Studio", amount: "₹25,000", status: "Pending" },
-                  { number: "INV-003", client: "Startup XYZ", amount: "₹75,000", status: "Overdue" }
-                ].map((invoice, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-sm">{invoice.number}</p>
-                      <p className="text-xs text-gray-600">{invoice.client}</p>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                </div>
+              ) : recentInvoices && recentInvoices.length > 0 ? (
+                <div className="space-y-3">
+                  {recentInvoices.map((invoice) => (
+                    <div key={invoice.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-sm">{invoice.invoice_number}</p>
+                        <p className="text-xs text-gray-600">{invoice.client_name}</p>
+                        <p className="text-xs text-gray-500">
+                          {invoice.issued_on ? format(new Date(invoice.issued_on), 'MMM dd, yyyy') : 'No date'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-sm">₹{Number(invoice.total_amount).toLocaleString()}</p>
+                        <p className={`text-xs ${getInvoiceStatusColor(Number(invoice.total_amount))}`}>
+                          {getInvoiceStatus(Number(invoice.total_amount))}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium text-sm">{invoice.amount}</p>
-                      <p className={`text-xs ${
-                        invoice.status === 'Paid' ? 'text-green-600' :
-                        invoice.status === 'Pending' ? 'text-yellow-600' :
-                        'text-red-600'
-                      }`}>
-                        {invoice.status}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <FileText className="w-12 h-12 text-gray-300 mb-3" />
+                  <h3 className="font-medium text-gray-900 mb-1">No invoices yet</h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Start by creating your first invoice above
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => document.getElementById('client-name')?.focus()}
+                  >
+                    Create Invoice
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
