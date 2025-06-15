@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -83,10 +84,21 @@ export const ProposalWriter = () => {
       const json = await res.json();
       if (json.error) throw new Error(json.error);
 
-      // Fix: Always set proposal, even if plain string fallback
-      setGeneratedProposal(json.proposal || (typeof json === "string" ? json : ""));
+      // Fix: Normalize proposal extraction
+      let proposalText = '';
+      if (typeof json === 'string') {
+        proposalText = json;
+      } else if (json.proposal) {
+        proposalText = json.proposal;
+      } else if (json.choices && Array.isArray(json.choices) && json.choices[0]?.message?.content) {
+        proposalText = json.choices[0].message.content;
+      } else {
+        proposalText = JSON.stringify(json);
+      }
+      setGeneratedProposal(proposalText);
       setUsedTokens(json.tokens_used ?? null);
       setAiModel(json.model ?? null);
+
       setIsGenerating(false);
       toast.success(json.deduped ? "Reused previous proposal!" : "Proposal generated successfully! ✨");
     } catch (e: any) {

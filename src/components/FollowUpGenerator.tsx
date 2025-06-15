@@ -84,9 +84,22 @@ export const FollowUpGenerator = () => {
       );
       const json = await res.json();
       if (json.error) throw new Error(json.error);
-      setGeneratedMessage(json.followup);
+
+      // Fix: Normalize followup extraction
+      let followupText = '';
+      if (typeof json === "string") {
+        followupText = json;
+      } else if (json.followup) {
+        followupText = json.followup;
+      } else if (json.choices && Array.isArray(json.choices) && json.choices[0]?.message?.content) {
+        followupText = json.choices[0].message.content;
+      } else {
+        followupText = JSON.stringify(json);
+      }
+      setGeneratedMessage(followupText);
       setUsedTokens(json.tokens_used ?? null);
       setAiModel(json.model ?? null);
+
       setIsGenerating(false);
       toast.success(json.deduped ? "Reused previous follow-up!" : "Follow-up message generated! 📧");
     } catch (e: any) {
