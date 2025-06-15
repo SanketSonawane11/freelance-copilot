@@ -14,6 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { PDFInvoiceDownload } from "./PDFInvoice";
+import { PDFDownloadLink, pdf as pdfInstance } from "@react-pdf/renderer";
+import { uploadInvoicePdf } from "@/utils/uploadInvoicePdf";
 
 interface InvoiceItem {
   description: string;
@@ -204,6 +206,20 @@ export const InvoiceGenerator = () => {
     };
   };
 
+  // Add isUploadingPdf state for UX
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+
+  // -- Helper to generate PDF blob using the same InvoiceData as PDFInvoiceDownload (exporting below)
+  async function generateInvoicePdfBlob(data: any): Promise<Blob> {
+    const { InvoicePDF } = await import("./PDFInvoice");
+    // Create a React-pdf Document instance and render to Blob
+    // This is a trick with @react-pdf/renderer to generate PDF blob from a Document component
+    const pdfDoc = pdfInstance(<InvoicePDF data={data} />);
+    const blob = await pdfDoc.toBlob();
+    return blob;
+  }
+
+  // --- OVERWRITE: handleGenerateInvoice now stores PDF in Supabase and pdf_url in invoices
   const handleGenerateInvoice = async () => {
     if (!clientName || items.some(item => !item.description)) {
       toast.error("Please fill in client details and item descriptions");
@@ -219,7 +235,18 @@ export const InvoiceGenerator = () => {
     }
     const status = computeStatus({ issueDate, dueDate, paymentStatus });
 
+    // Prepare PDF data
+    const pdfData = getInvoicePdfData();
+
+    setIsUploadingPdf(true);
     try {
+      // 1. Generate PDF Blob:
+      const pdfBlob = await generateInvoicePdfBlob(pdfData);
+
+      // 2. Upload to Supabase Storage:
+      const pdfUrl = await uploadInvoicePdf(invoiceNumber, pdfBlob);
+
+      // 3. Insert invoice record in Supabase (with pdf_url)
       const { error } = await supabase
         .from('invoices')
         .insert({
@@ -231,16 +258,18 @@ export const InvoiceGenerator = () => {
           issued_on: issueDate,
           status: status,
           payment_status: paymentStatus,
+          pdf_url: pdfUrl,
         });
       if (error) throw error;
 
-      toast.success("Invoice generated successfully! 📄");
-      setCachedPdfData(getInvoicePdfData());
+      toast.success("Invoice generated and saved! 📄");
+      setCachedPdfData(pdfData);
       setShowDownload(true);
-      // Optionally reset form here after download
     } catch (error) {
-      console.error('Error generating invoice:', error);
-      toast.error("Failed to generate invoice");
+      console.error('Error generating or uploading invoice:', error);
+      toast.error("Failed to generate/save invoice");
+    } finally {
+      setIsUploadingPdf(false);
     }
   };
 
@@ -537,6 +566,7 @@ export const InvoiceGenerator = () => {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                 </div>
               ) : recentInvoices && recentInvoices.length > 0 ? (
+                // --- Updated Layout: show download button!
                 <div className="space-y-3">
                   {recentInvoices.map((invoice: any) => {
                     const status = computeStatus({
@@ -545,15 +575,15 @@ export const InvoiceGenerator = () => {
                       paymentStatus: invoice.payment_status,
                     });
                     return (
-                      <div key={invoice.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <div>
+                      <div key={invoice.id} className="flex flex-wrap md:flex-nowrap justify-between items-center p-3 bg-gray-50 rounded-lg gap-y-4 gap-x-2">
+                        <div className="w-full flex-1 min-w-[140px]">
                           <p className="font-medium text-sm">{invoice.invoice_number}</p>
                           <p className="text-xs text-gray-600">{invoice.client_name}</p>
                           <p className="text-xs text-gray-500">
                             {invoice.issued_on ? format(new Date(invoice.issued_on), 'MMM dd, yyyy') : 'No date'}
                           </p>
                         </div>
-                        <div className="text-right">
+                        <div className="flex flex-col justify-center items-end min-w-[110px] gap-1">
                           <p className="font-medium text-sm">₹{Number(invoice.total_amount).toLocaleString()}</p>
                           <div className="flex items-center gap-2">
                             {getStatusBadge(status)}
@@ -567,6 +597,24 @@ export const InvoiceGenerator = () => {
                           <p className="text-xs text-gray-500">
                             {getDueText(invoice.due_date || "", status)}
                           </p>
+                        </div>
+                        {/* --- Download button for stored PDF --- */}
+                        <div className="min-w-[40px] flex-shrink-0 flex items-center">
+                          {invoice.pdf_url ? (
+                            <a
+                              href={invoice.pdf_url}
+                              download
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex flex-col items-center"
+                              aria-label="Download Invoice PDF"
+                            >
+                              <Download className="w-5 h-5 text-blue-500 hover:text-blue-700 transition-colors" />
+                              <span className="sr-only">Download PDF</span>
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">No PDF</span>
+                          )}
                         </div>
                       </div>
                     );

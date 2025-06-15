@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
 import { Button } from '@/components/ui/button';
@@ -154,3 +153,5 @@ export const PDFInvoiceDownload = ({ data, fileName }: { data: InvoiceData; file
     )}
   </PDFDownloadLink>
 );
+
+export const InvoicePDF = InvoicePDF; // Named export for programmatic PDF rendering
