@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Brain } from "lucide-react";
 import { useSettingsPage } from "@/hooks/useSettingsPage";
@@ -41,20 +42,12 @@ const Settings = () => {
     );
   }
 
-  // Now we use subscription.current_plan from billing_info
-  const plan =
-    subscription && (subscription.current_plan === "pro" || subscription.current_plan === "basic")
-      ? subscription.current_plan
-      : "starter"; // fallback if null/blank
-  
-  const status = subscription && typeof subscription.current_plan === "string"
-    ? "active"
-    : "none";
-  
-  const expires =
-    subscription && typeof subscription.renewal_date === "string"
-      ? new Date(subscription.renewal_date).toLocaleDateString()
-      : "N/A";
+  // Use subscription data from the new useSubscription hook
+  const plan = subscription?.current_plan || "starter";
+  const status = subscription?.subscription_status || "inactive";
+  const expires = subscription?.current_period_end 
+    ? new Date(subscription.current_period_end).toLocaleDateString()
+    : "N/A";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
@@ -63,25 +56,27 @@ const Settings = () => {
         <div className="mb-8">
           <h3 className="font-bold text-xl mb-2">Your Subscription</h3>
           <div className="flex items-center gap-6">
-            <span className={`px-3 py-1 rounded-full text-white font-semibold ${plan === "pro"
-              ? "bg-gradient-to-r from-purple-500 to-pink-500"
-              : "bg-gradient-to-r from-blue-500 to-green-500"
+            <span className={`px-3 py-1 rounded-full text-white font-semibold ${
+              plan === "pro"
+                ? "bg-gradient-to-r from-purple-500 to-pink-500"
+                : plan === "basic"
+                ? "bg-gradient-to-r from-blue-500 to-green-500"
+                : "bg-gradient-to-r from-gray-500 to-slate-500"
             }`}>
               {plan === "pro" ? "Pro Plan" : plan === "basic" ? "Basic Plan" : "Starter Plan"}
             </span>
-            <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">
+            <span className={`px-2 py-1 text-xs rounded ${
+              status === "active" 
+                ? "bg-green-100 text-green-600" 
+                : "bg-gray-100 text-gray-600"
+            }`}>
               Status: {status}
             </span>
-            <span className="text-sm text-gray-600">
-              Expires: {expires}
-            </span>
-            <button
-              className="ml-4 text-blue-600 hover:text-blue-800 font-medium underline"
-              // TODO: Implement upgrade/downgrade flow, call backend in Stage 2
-              onClick={() => window.alert("Change plan coming soon!")}
-            >
-              {plan === "pro" ? "Downgrade to Basic" : "Upgrade to Pro"}
-            </button>
+            {subscription?.current_period_end && (
+              <span className="text-sm text-gray-600">
+                Expires: {expires}
+              </span>
+            )}
           </div>
         </div>
 

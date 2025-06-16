@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserData } from './useUserData';
+import { useSubscription } from './useSubscription';
 
 type UsageType = 'proposal' | 'followup';
 
@@ -14,19 +15,28 @@ export const getCurrentMonthDate = () => {
 
 export const getMonthlyLimit = (plan: string, type: UsageType) => {
   if (plan === 'pro') return 100;
-  return 10;
+  if (plan === 'basic') return 50;
+  return 10; // starter
 };
 
 export function useUsageLimit(type: UsageType) {
   const { data: userData } = useUserData();
+  const { data: subscription } = useSubscription();
   const userId = userData?.profile?.id;
-  const subscriptionPlan =
-    userData?.billingInfo?.current_plan ||
-    userData?.profile?.subscription_tier ||
-    'starter';
+  const subscriptionPlan = subscription?.current_plan || 'starter';
+  const subscriptionStatus = subscription?.subscription_status || 'inactive';
+  const currentPeriodEnd = subscription?.current_period_end;
 
   const month = getCurrentMonthDate();
   const queryClient = useQueryClient();
+
+  // Check if subscription is valid
+  const isSubscriptionValid = () => {
+    if (subscriptionPlan === 'starter') return true; // Starter plan always valid with basic limits
+    if (subscriptionStatus !== 'active') return false;
+    if (currentPeriodEnd && new Date(currentPeriodEnd) < new Date()) return false;
+    return true;
+  };
 
   // Fetch usage_stats for this user+month; create if not exists
   const { data, isLoading, refetch } = useQuery({
@@ -62,16 +72,25 @@ export function useUsageLimit(type: UsageType) {
   const mutation = useMutation({
     mutationFn: async () => {
       if (!userId) throw new Error('No user');
+      
+      // Check subscription validity for paid features
+      if (subscriptionPlan !== 'starter' && !isSubscriptionValid()) {
+        throw new Error('Your subscription has expired or is inactive. Please renew to continue using premium features.');
+      }
+
       const limit = getMonthlyLimit(subscriptionPlan, type);
       // Map to schema's fields
       const count = type === 'proposal'
         ? (data?.proposals_used || 0)
         : (data?.followups_used || 0);
+      
       if (count >= limit) {
+        const planName = subscriptionPlan === 'starter' ? 'current plan' : `${subscriptionPlan} plan`;
         throw new Error(
-          `${type === 'proposal' ? 'Proposal' : 'Follow-up'} limit reached.`
+          `${type === 'proposal' ? 'Proposal' : 'Follow-up'} limit reached for your ${planName}. Please upgrade to continue.`
         );
       }
+      
       // Update correct key
       const updates =
         type === 'proposal'
@@ -97,14 +116,18 @@ export function useUsageLimit(type: UsageType) {
     ? data?.proposals_used || 0
     : data?.followups_used || 0;
 
+  const canIncrement = current < limit && (subscriptionPlan === 'starter' || isSubscriptionValid());
+
   return {
     limit,
     current,
     isLoading,
-    canIncrement: current < limit,
+    canIncrement,
     increment: mutation.mutateAsync,
     refetch,
     error: mutation.error,
+    subscriptionValid: isSubscriptionValid(),
+    subscriptionPlan,
+    subscriptionStatus
   };
 }
-
