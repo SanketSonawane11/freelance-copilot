@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Brain, Sparkles, Zap, Check } from "lucide-react";
 import { toast } from "sonner";
 import { createInitialSubscription } from "@/utils/createInitialSubscription";
+import { useNavigate } from "react-router-dom";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -15,6 +15,7 @@ const Auth = () => {
   const [name, setName] = useState("");
   const [selectedPlan, setSelectedPlan] = useState<"starter" | "basic" | "pro">("starter");
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +71,7 @@ const Auth = () => {
 
       if (error) throw error;
       toast.success("Signed in successfully!");
+      navigate("/");
     } catch (error: any) {
       console.error("Signin error:", error);
       toast.error(error.message || "Failed to sign in");

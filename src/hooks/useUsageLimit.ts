@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserData } from './useUserData';
@@ -56,7 +55,7 @@ export function useUsageLimit(type: UsageType) {
       if (!data && !error) {
         const { data: inserted, error: insertError } = await supabase
           .from('usage_stats')
-          .insert([{ user_id: userId, month }])
+          .insert([{ user_id: userId, month, proposals_used: 0, followups_used: 0 }])
           .select()
           .maybeSingle();
         if (inserted) return inserted;

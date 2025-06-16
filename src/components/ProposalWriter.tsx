@@ -97,7 +97,7 @@ export const ProposalWriter = () => {
       setAiModel((json as any).model ?? null);
 
       setIsGenerating(false);
-      toast.success((json as any).deduped ? "Reused previous proposal!" : "Proposal generated successfully! ✨");
+      toast.success("Proposal generated successfully! ✨");
     } catch (e: any) {
       setIsGenerating(false);
       toast.error(e?.message || "AI generation error.");

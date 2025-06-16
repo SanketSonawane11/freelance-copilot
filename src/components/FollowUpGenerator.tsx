@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -95,7 +94,7 @@ export const FollowUpGenerator = () => {
       setAiModel((json as any).model ?? null);
 
       setIsGenerating(false);
-      toast.success((json as any).deduped ? "Reused previous follow-up!" : "Follow-up generated successfully! ✨");
+      toast.success("Follow-up generated successfully! ✨");
     } catch (e: any) {
       setIsGenerating(false);
       toast.error(e?.message || "AI generation error.");
