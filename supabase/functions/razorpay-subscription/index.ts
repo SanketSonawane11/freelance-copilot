@@ -50,6 +50,7 @@ async function handleCreateSubscription(req: Request, supabase: any) {
   const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader?.replace('Bearer ', ''))
   
   if (authError || !user || user.id !== user_id) {
+    console.log('Authorization failed:', authError?.message || 'User mismatch')
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -59,10 +60,10 @@ async function handleCreateSubscription(req: Request, supabase: any) {
   // Create Razorpay subscription
   const razorpayAuth = btoa(`${Deno.env.get('RAZORPAY_KEY_ID')}:${Deno.env.get('RAZORPAY_SECRET')}`)
   
-  // Define plan amounts (in paise - INR smallest unit)
+  // Updated plan amounts (in paise - INR smallest unit)
   const planAmounts = {
-    basic: 49900, // ₹499
-    pro: 99900    // ₹999
+    basic: 14900, // ₹149
+    pro: 34900    // ₹349
   }
 
   const subscriptionData = {
@@ -75,6 +76,8 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     }
   }
 
+  console.log('Sending request to Razorpay with data:', JSON.stringify(subscriptionData, null, 2))
+
   const razorpayResponse = await fetch('https://api.razorpay.com/v1/subscriptions', {
     method: 'POST',
     headers: {
@@ -84,16 +87,35 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     body: JSON.stringify(subscriptionData)
   })
 
+  const responseText = await razorpayResponse.text()
+  console.log(`Razorpay API response status: ${razorpayResponse.status}`)
+  console.log('Razorpay API response:', responseText)
+
   if (!razorpayResponse.ok) {
-    const errorText = await razorpayResponse.text()
-    console.error('Razorpay API error:', errorText)
-    return new Response(JSON.stringify({ error: 'Failed to create subscription' }), {
+    console.error('Razorpay API error:', responseText)
+    return new Response(JSON.stringify({ 
+      error: 'Failed to create subscription',
+      details: responseText,
+      status: razorpayResponse.status
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 
-  const subscription = await razorpayResponse.json()
+  let subscription
+  try {
+    subscription = JSON.parse(responseText)
+  } catch (parseError) {
+    console.error('Failed to parse Razorpay response:', parseError)
+    return new Response(JSON.stringify({ 
+      error: 'Invalid response from payment gateway',
+      details: responseText
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
   
   // Update billing_info with new subscription
   const { error: updateError } = await supabase
@@ -102,7 +124,7 @@ async function handleCreateSubscription(req: Request, supabase: any) {
       user_id: user_id,
       current_plan: plan,
       razorpay_subscription_id: subscription.id,
-      subscription_status: 'active',
+      subscription_status: 'created',
       current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
       updated_at: new Date().toISOString()
     })
@@ -111,6 +133,7 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     console.error('Database update error:', updateError)
   }
 
+  console.log('Subscription created successfully:', subscription.id)
   return new Response(JSON.stringify({
     subscription_id: subscription.id,
     key_id: Deno.env.get('RAZORPAY_KEY_ID'),

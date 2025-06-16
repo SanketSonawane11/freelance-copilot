@@ -20,6 +20,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({ data }) => {
   const isActive = subscriptionStatus === 'active';
 
   const handleUpgrade = (plan: 'basic' | 'pro') => {
+    console.log('Upgrading to plan:', plan);
     createSubscription(plan);
   };
 
@@ -81,7 +82,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({ data }) => {
           {currentPlan === 'starter' && (
             <div className="space-y-3">
               <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-100">
-                <h5 className="font-semibold text-blue-800 mb-2">Basic Plan - ₹499/month</h5>
+                <h5 className="font-semibold text-blue-800 mb-2">Basic Plan - ₹149/month</h5>
                 <p className="text-blue-700 mb-3">50 AI proposals, 50 follow-ups, priority support</p>
                 <Button 
                   onClick={() => handleUpgrade('basic')}
@@ -94,7 +95,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({ data }) => {
               </div>
               
               <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-100">
-                <h5 className="font-semibold text-purple-800 mb-2">Pro Plan - ₹999/month</h5>
+                <h5 className="font-semibold text-purple-800 mb-2">Pro Plan - ₹349/month</h5>
                 <p className="text-purple-700 mb-3">100 AI proposals, 100 follow-ups, advanced AI features, priority support</p>
                 <Button 
                   onClick={() => handleUpgrade('pro')}
@@ -111,7 +112,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({ data }) => {
           {currentPlan === 'basic' && (
             <div className="space-y-3">
               <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-100">
-                <h5 className="font-semibold text-purple-800 mb-2">Upgrade to Pro - ₹999/month</h5>
+                <h5 className="font-semibold text-purple-800 mb-2">Upgrade to Pro - ₹349/month</h5>
                 <p className="text-purple-700 mb-3">Double your limits + advanced AI features</p>
                 <Button 
                   onClick={() => handleUpgrade('pro')}
