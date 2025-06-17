@@ -1,7 +1,9 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserData } from './useUserData';
 import { useSubscription } from './useSubscription';
+import { getPlanLimits } from '@/utils/planLimits';
 
 type UsageType = 'proposal' | 'followup';
 
@@ -10,12 +12,6 @@ export const getCurrentMonthDate = () => {
   const now = new Date();
   // e.g., '2025-06-01' as DATE string
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-};
-
-export const getMonthlyLimit = (plan: string, type: UsageType) => {
-  if (plan === 'pro') return 100;
-  if (plan === 'basic') return 50;
-  return 10; // starter
 };
 
 export function useUsageLimit(type: UsageType) {
@@ -36,6 +32,10 @@ export function useUsageLimit(type: UsageType) {
     if (currentPeriodEnd && new Date(currentPeriodEnd) < new Date()) return false;
     return true;
   };
+
+  // Get dynamic limits based on plan
+  const planLimits = getPlanLimits(subscriptionPlan);
+  const limit = type === 'proposal' ? planLimits.proposals : planLimits.followups;
 
   // Fetch usage_stats for this user+month; create if not exists
   const { data, isLoading, refetch } = useQuery({
@@ -77,7 +77,6 @@ export function useUsageLimit(type: UsageType) {
         throw new Error('Your subscription has expired or is inactive. Please renew to continue using premium features.');
       }
 
-      const limit = getMonthlyLimit(subscriptionPlan, type);
       // Map to schema's fields
       const count = type === 'proposal'
         ? (data?.proposals_used || 0)
@@ -109,7 +108,6 @@ export function useUsageLimit(type: UsageType) {
     },
   });
 
-  const limit = getMonthlyLimit(subscriptionPlan, type);
   // Use correct fields
   const current = type === 'proposal'
     ? data?.proposals_used || 0

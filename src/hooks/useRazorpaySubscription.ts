@@ -18,27 +18,40 @@ export function useRazorpaySubscription() {
     mutationFn: async (plan: 'basic' | 'pro') => {
       if (!user?.id) throw new Error('No user');
 
+      console.log('Creating Razorpay subscription for plan:', plan);
+      
       const { data, error } = await supabase.functions.invoke('razorpay-subscription/create-subscription', {
         body: { user_id: user.id, plan }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Razorpay subscription creation error:', error);
+        throw error;
+      }
+      
+      console.log('Razorpay subscription created:', data);
       return data;
     },
     onSuccess: (data, plan) => {
+      console.log('Razorpay subscription success, opening checkout for plan:', plan);
+      
       // Load Razorpay script if not already loaded
       if (!window.Razorpay) {
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.onload = () => openRazorpayCheckout(data, plan);
+        script.onerror = () => {
+          console.error('Failed to load Razorpay script');
+          toast.error('Failed to load payment gateway');
+        };
         document.head.appendChild(script);
       } else {
         openRazorpayCheckout(data, plan);
       }
     },
     onError: (error) => {
-      toast.error('Failed to create subscription');
       console.error('Subscription creation error:', error);
+      toast.error(error?.message || 'Failed to create subscription');
     },
   });
 
@@ -56,6 +69,7 @@ export function useRazorpaySubscription() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscription', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['settings', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['userData', user?.id] });
       toast.success('Subscription cancelled successfully');
     },
     onError: (error) => {
@@ -65,6 +79,8 @@ export function useRazorpaySubscription() {
   });
 
   const openRazorpayCheckout = (subscriptionData: any, plan: string) => {
+    console.log('Opening Razorpay checkout with data:', subscriptionData);
+    
     const options = {
       key: subscriptionData.key_id,
       subscription_id: subscriptionData.subscription_id,
@@ -74,9 +90,14 @@ export function useRazorpaySubscription() {
         console.log('Payment successful:', response);
         toast.success('Payment successful! Your subscription is now active.');
         
-        // Refresh user data
+        // Refresh all relevant data
         queryClient.invalidateQueries({ queryKey: ['subscription', user?.id] });
         queryClient.invalidateQueries({ queryKey: ['settings', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['userData', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['usage_stats'] });
+        
+        // Navigate to dashboard
+        window.location.href = '/';
       },
       prefill: {
         email: user?.email,
@@ -86,13 +107,19 @@ export function useRazorpaySubscription() {
       },
       modal: {
         ondismiss: function() {
-          console.log('Payment modal closed');
+          console.log('Payment modal closed by user');
+          toast.info('Payment cancelled. You can retry from Settings > Billing.');
         }
       }
     };
 
-    const rzp = new window.Razorpay(options);
-    rzp.open();
+    try {
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error('Error opening Razorpay checkout:', error);
+      toast.error('Failed to open payment gateway');
+    }
   };
 
   return {
@@ -100,5 +127,6 @@ export function useRazorpaySubscription() {
     cancelSubscription: cancelSubscriptionMutation.mutate,
     isCreating: createSubscriptionMutation.isPending,
     isCancelling: cancelSubscriptionMutation.isPending,
+    error: createSubscriptionMutation.error,
   };
 }

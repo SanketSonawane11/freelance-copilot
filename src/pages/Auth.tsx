@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Brain, Sparkles, Zap, Check } from "lucide-react";
 import { toast } from "sonner";
 import { createInitialSubscription } from "@/utils/createInitialSubscription";
 import { useNavigate } from "react-router-dom";
+import { useRazorpaySubscription } from "@/hooks/useRazorpaySubscription";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -15,7 +17,9 @@ const Auth = () => {
   const [name, setName] = useState("");
   const [selectedPlan, setSelectedPlan] = useState<"starter" | "basic" | "pro">("starter");
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingUser, setPendingUser] = useState<any>(null);
   const navigate = useNavigate();
+  const { createSubscription, isCreating } = useRazorpaySubscription();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,14 +41,25 @@ const Auth = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Set initial subscription plan in billing_info
-        const { error: subscriptionError } = await createInitialSubscription(data.user.id, selectedPlan);
+        // Always create starter subscription first
+        const { error: subscriptionError } = await createInitialSubscription(data.user.id, "starter");
         
         if (subscriptionError) {
           console.error("Failed to set initial subscription:", subscriptionError);
           toast.error("Account created but failed to set plan. Please contact support.");
+          return;
+        }
+
+        // If user selected paid plan, trigger payment flow
+        if (selectedPlan === "basic" || selectedPlan === "pro") {
+          setPendingUser(data.user);
+          toast.success("Account created! Please complete payment to activate your plan.");
+          
+          // Trigger Razorpay payment
+          createSubscription(selectedPlan);
         } else {
           toast.success("Account created successfully! Please check your email to verify your account.");
+          navigate("/");
         }
       }
     } catch (error: any) {
@@ -249,7 +264,8 @@ const Auth = () => {
                 <CardHeader>
                   <CardTitle>Create Account</CardTitle>
                   <CardDescription>
-                    Start with {selectedPlan} plan • You can upgrade anytime
+                    Start with {selectedPlan} plan • 
+                    {selectedPlan !== "starter" ? " Payment required to activate" : " Free forever"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -285,9 +301,10 @@ const Auth = () => {
                     <Button 
                       type="submit" 
                       className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-                      disabled={isLoading}
+                      disabled={isLoading || isCreating}
                     >
-                      {isLoading ? "Creating Account..." : `Create ${selectedPlan} Account`}
+                      {isLoading || isCreating ? "Creating Account..." : 
+                       selectedPlan === "starter" ? "Create Free Account" : `Create Account & Pay ₹${selectedPlan === "basic" ? "149" : "349"}`}
                     </Button>
                   </form>
                 </CardContent>
