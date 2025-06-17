@@ -131,7 +131,7 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     })
   }
   
-  // Update billing_info with pending order
+  // Update billing_info with pending order - Use upsert to handle conflicts
   const { error: updateError } = await supabase
     .from('billing_info')
     .upsert({
@@ -139,7 +139,7 @@ async function handleCreateSubscription(req: Request, supabase: any) {
       current_plan: 'starter', // Keep starter until payment is confirmed
       subscription_status: 'pending',
       updated_at: new Date().toISOString()
-    })
+    }, { onConflict: 'user_id' })
 
   if (updateError) {
     console.error('Database update error:', updateError)
