@@ -18,22 +18,22 @@ export function useRazorpaySubscription() {
     mutationFn: async (plan: 'basic' | 'pro') => {
       if (!user?.id) throw new Error('No user');
 
-      console.log('Creating Razorpay subscription for plan:', plan);
+      console.log('Creating Razorpay order for plan:', plan);
       
       const { data, error } = await supabase.functions.invoke('razorpay-subscription/create-subscription', {
         body: { user_id: user.id, plan }
       });
 
       if (error) {
-        console.error('Razorpay subscription creation error:', error);
+        console.error('Razorpay order creation error:', error);
         throw error;
       }
       
-      console.log('Razorpay subscription created:', data);
+      console.log('Razorpay order created:', data);
       return data;
     },
     onSuccess: (data, plan) => {
-      console.log('Razorpay subscription success, opening checkout for plan:', plan);
+      console.log('Razorpay order success, opening checkout for plan:', plan);
       
       // Load Razorpay script if not already loaded
       if (!window.Razorpay) {
@@ -50,8 +50,8 @@ export function useRazorpaySubscription() {
       }
     },
     onError: (error) => {
-      console.error('Subscription creation error:', error);
-      toast.error(error?.message || 'Failed to create subscription');
+      console.error('Order creation error:', error);
+      toast.error(error?.message || 'Failed to create payment order');
     },
   });
 
@@ -78,12 +78,14 @@ export function useRazorpaySubscription() {
     },
   });
 
-  const openRazorpayCheckout = (subscriptionData: any, plan: string) => {
-    console.log('Opening Razorpay checkout with data:', subscriptionData);
+  const openRazorpayCheckout = (orderData: any, plan: string) => {
+    console.log('Opening Razorpay checkout with data:', orderData);
     
     const options = {
-      key: subscriptionData.key_id,
-      subscription_id: subscriptionData.subscription_id,
+      key: orderData.key_id,
+      amount: orderData.amount,
+      currency: orderData.currency || 'INR',
+      order_id: orderData.order_id,
       name: 'Freelancer Copilot',
       description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan Subscription`,
       handler: function (response: any) {

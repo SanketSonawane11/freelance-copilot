@@ -57,34 +57,42 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     })
   }
 
-  // Create Razorpay subscription
-  const razorpayAuth = btoa(`${Deno.env.get('RAZORPAY_KEY_ID')}:${Deno.env.get('RAZORPAY_SECRET')}`)
-  
-  // Updated plan amounts (in paise - INR smallest unit)
+  // Plan amounts (in paise - INR smallest unit)
   const planAmounts = {
     basic: 14900, // ₹149
     pro: 34900    // ₹349
   }
 
-  const subscriptionData = {
-    plan_id: plan === 'pro' ? 'plan_pro_monthly' : 'plan_basic_monthly',
-    customer_notify: 1,
-    total_count: 12, // 12 months
+  const amount = planAmounts[plan as keyof typeof planAmounts]
+  if (!amount) {
+    return new Response(JSON.stringify({ error: 'Invalid plan' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+
+  // Create Razorpay order (not subscription) for one-time payment
+  const razorpayAuth = btoa(`${Deno.env.get('RAZORPAY_KEY_ID')}:${Deno.env.get('RAZORPAY_SECRET')}`)
+  
+  const orderData = {
+    amount: amount, // amount in paise
+    currency: 'INR',
+    receipt: `receipt_${user_id}_${Date.now()}`,
     notes: {
       user_id: user_id,
       plan: plan
     }
   }
 
-  console.log('Sending request to Razorpay with data:', JSON.stringify(subscriptionData, null, 2))
+  console.log('Creating Razorpay order with data:', JSON.stringify(orderData, null, 2))
 
-  const razorpayResponse = await fetch('https://api.razorpay.com/v1/subscriptions', {
+  const razorpayResponse = await fetch('https://api.razorpay.com/v1/orders', {
     method: 'POST',
     headers: {
       'Authorization': `Basic ${razorpayAuth}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(subscriptionData)
+    body: JSON.stringify(orderData)
   })
 
   const responseText = await razorpayResponse.text()
@@ -94,7 +102,7 @@ async function handleCreateSubscription(req: Request, supabase: any) {
   if (!razorpayResponse.ok) {
     console.error('Razorpay API error:', responseText)
     return new Response(JSON.stringify({ 
-      error: 'Failed to create subscription',
+      error: 'Failed to create payment order',
       details: responseText,
       status: razorpayResponse.status
     }), {
@@ -103,9 +111,9 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     })
   }
 
-  let subscription
+  let order
   try {
-    subscription = JSON.parse(responseText)
+    order = JSON.parse(responseText)
   } catch (parseError) {
     console.error('Failed to parse Razorpay response:', parseError)
     return new Response(JSON.stringify({ 
@@ -117,15 +125,13 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     })
   }
   
-  // Update billing_info with new subscription
+  // Update billing_info with pending order
   const { error: updateError } = await supabase
     .from('billing_info')
     .upsert({
       user_id: user_id,
-      current_plan: plan,
-      razorpay_subscription_id: subscription.id,
-      subscription_status: 'created',
-      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+      current_plan: 'starter', // Keep starter until payment is confirmed
+      subscription_status: 'pending',
       updated_at: new Date().toISOString()
     })
 
@@ -133,12 +139,13 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     console.error('Database update error:', updateError)
   }
 
-  console.log('Subscription created successfully:', subscription.id)
+  console.log('Order created successfully:', order.id)
   return new Response(JSON.stringify({
-    subscription_id: subscription.id,
+    order_id: order.id,
     key_id: Deno.env.get('RAZORPAY_KEY_ID'),
-    amount: planAmounts[plan as keyof typeof planAmounts],
-    plan: plan
+    amount: amount,
+    plan: plan,
+    currency: 'INR'
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   })
@@ -160,51 +167,22 @@ async function handleCancelSubscription(req: Request, supabase: any) {
     })
   }
 
-  // Get current subscription
-  const { data: billing, error: billingError } = await supabase
-    .from('billing_info')
-    .select('razorpay_subscription_id')
-    .eq('user_id', user_id)
-    .single()
-
-  if (billingError || !billing?.razorpay_subscription_id) {
-    return new Response(JSON.stringify({ error: 'No active subscription found' }), {
-      status: 404,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-
-  // Cancel Razorpay subscription
-  const razorpayAuth = btoa(`${Deno.env.get('RAZORPAY_KEY_ID')}:${Deno.env.get('RAZORPAY_SECRET')}`)
-  
-  const cancelResponse = await fetch(`https://api.razorpay.com/v1/subscriptions/${billing.razorpay_subscription_id}/cancel`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${razorpayAuth}`,
-      'Content-Type': 'application/json'
-    }
-  })
-
-  if (!cancelResponse.ok) {
-    const errorText = await cancelResponse.text()
-    console.error('Razorpay cancel error:', errorText)
-    return new Response(JSON.stringify({ error: 'Failed to cancel subscription' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-
-  // Update billing_info
+  // Update billing_info to downgrade to starter
   const { error: updateError } = await supabase
     .from('billing_info')
     .update({
-      subscription_status: 'cancelled',
+      current_plan: 'starter',
+      subscription_status: 'inactive',
       updated_at: new Date().toISOString()
     })
     .eq('user_id', user_id)
 
   if (updateError) {
     console.error('Database update error:', updateError)
+    return new Response(JSON.stringify({ error: 'Failed to cancel subscription' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
   }
 
   return new Response(JSON.stringify({ success: true }), {
@@ -235,40 +213,28 @@ async function handleWebhook(req: Request, supabase: any) {
   const event = JSON.parse(body)
   console.log('Razorpay webhook received:', event.event)
 
-  const subscription = event.payload?.subscription?.entity
-  if (!subscription) {
-    return new Response('No subscription data', { status: 400 })
+  // Handle payment success
+  if (event.event === 'payment.captured') {
+    const payment = event.payload?.payment?.entity
+    if (payment && payment.notes?.user_id && payment.notes?.plan) {
+      const { error: updateError } = await supabase
+        .from('billing_info')
+        .update({
+          current_plan: payment.notes.plan,
+          subscription_status: 'active',
+          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', payment.notes.user_id)
+
+      if (updateError) {
+        console.error('Webhook database update error:', updateError)
+        return new Response('Database error', { status: 500 })
+      }
+
+      console.log(`Updated user ${payment.notes.user_id} to plan: ${payment.notes.plan}`)
+    }
   }
 
-  let newStatus = 'inactive'
-  switch (event.event) {
-    case 'subscription.charged':
-      newStatus = 'active'
-      break
-    case 'subscription.cancelled':
-    case 'subscription.completed':
-      newStatus = 'cancelled'
-      break
-    case 'payment.failed':
-      newStatus = 'expired'
-      break
-  }
-
-  // Update billing_info based on subscription_id
-  const { error: updateError } = await supabase
-    .from('billing_info')
-    .update({
-      subscription_status: newStatus,
-      current_period_end: subscription.current_end ? new Date(subscription.current_end * 1000).toISOString() : null,
-      updated_at: new Date().toISOString()
-    })
-    .eq('razorpay_subscription_id', subscription.id)
-
-  if (updateError) {
-    console.error('Webhook database update error:', updateError)
-    return new Response('Database error', { status: 500 })
-  }
-
-  console.log(`Updated subscription ${subscription.id} to status: ${newStatus}`)
   return new Response('Webhook processed', { status: 200 })
 }
