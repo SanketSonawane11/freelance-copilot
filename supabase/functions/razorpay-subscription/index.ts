@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -71,13 +70,20 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     })
   }
 
+  // Create shorter receipt ID (max 40 chars)
+  const timestamp = Date.now().toString()
+  const userIdShort = user_id.substring(0, 8) // First 8 chars of UUID
+  const receipt = `rcpt_${userIdShort}_${timestamp}`
+  
+  console.log(`Generated receipt ID: ${receipt} (length: ${receipt.length})`)
+
   // Create Razorpay order (not subscription) for one-time payment
   const razorpayAuth = btoa(`${Deno.env.get('RAZORPAY_KEY_ID')}:${Deno.env.get('RAZORPAY_SECRET')}`)
   
   const orderData = {
     amount: amount, // amount in paise
     currency: 'INR',
-    receipt: `receipt_${user_id}_${Date.now()}`,
+    receipt: receipt,
     notes: {
       user_id: user_id,
       plan: plan
