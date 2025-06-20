@@ -131,20 +131,6 @@ async function handleCreateSubscription(req: Request, supabase: any) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
-  
-  // Update billing_info with pending order - Use upsert to handle conflicts
-  const { error: updateError } = await supabase
-    .from('billing_info')
-    .upsert({
-      user_id: user_id,
-      current_plan: 'starter', // Keep starter until payment is confirmed
-      subscription_status: 'pending',
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' })
-
-  if (updateError) {
-    console.error('Database update error:', updateError)
-  }
 
   console.log('Order created successfully:', order.id)
   return new Response(JSON.stringify({
@@ -226,6 +212,7 @@ async function handleWebhook(req: Request, supabase: any) {
 
   const event = JSON.parse(body)
   console.log('Razorpay webhook received:', event.event)
+  console.log('Full event payload:', JSON.stringify(event, null, 2))
 
   // Handle payment success
   if (event.event === 'payment.captured') {
@@ -233,31 +220,63 @@ async function handleWebhook(req: Request, supabase: any) {
     if (payment && payment.notes?.user_id && payment.notes?.plan) {
       console.log(`Processing payment success for user ${payment.notes.user_id}, plan: ${payment.notes.plan}`)
       
-      // Update billing_info
-      const { error: billingError } = await supabase
-        .from('billing_info')
-        .update({
-          current_plan: payment.notes.plan,
-          subscription_status: 'active',
-          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', payment.notes.user_id)
+      const userId = payment.notes.user_id
+      const plan = payment.notes.plan
+      
+      // Calculate period end (30 days from now)
+      const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      
+      console.log(`Updating user ${userId} to plan ${plan} with period end: ${periodEnd}`)
+      
+      try {
+        // Update billing_info first
+        const { data: billingData, error: billingError } = await supabase
+          .from('billing_info')
+          .upsert({
+            user_id: userId,
+            current_plan: plan,
+            subscription_status: 'active',
+            current_period_end: periodEnd,
+            updated_at: new Date().toISOString()
+          }, { 
+            onConflict: 'user_id',
+            ignoreDuplicates: false 
+          })
+          .select()
 
-      // Update user_profiles
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .update({
-          subscription_tier: payment.notes.plan
-        })
-        .eq('id', payment.notes.user_id)
+        if (billingError) {
+          console.error('Billing update error:', billingError)
+          return new Response('Billing update failed', { status: 500 })
+        }
+        
+        console.log('Billing info updated successfully:', billingData)
 
-      if (billingError || profileError) {
-        console.error('Webhook database update error:', billingError || profileError)
+        // Update user_profiles
+        const { data: profileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .upsert({
+            id: userId,
+            subscription_tier: plan
+          }, { 
+            onConflict: 'id',
+            ignoreDuplicates: false 
+          })
+          .select()
+
+        if (profileError) {
+          console.error('Profile update error:', profileError)
+          return new Response('Profile update failed', { status: 500 })
+        }
+        
+        console.log('Profile updated successfully:', profileData)
+        console.log(`Successfully updated user ${userId} to plan: ${plan}`)
+        
+      } catch (error) {
+        console.error('Database operation failed:', error)
         return new Response('Database error', { status: 500 })
       }
-
-      console.log(`Successfully updated user ${payment.notes.user_id} to plan: ${payment.notes.plan}`)
+    } else {
+      console.log('Missing payment notes or incomplete data:', payment)
     }
   }
 

@@ -69,28 +69,39 @@ export const useSettings = () => {
         throw profileError;
       }
 
-      // Ensure both billing and profile have same plan
-      const currentPlan = billing?.current_plan || profile?.subscription_tier || 'starter';
+      // Determine the correct plan - billing_info takes precedence for active subscriptions
+      let currentPlan = 'starter';
       
-      // If there's a mismatch, sync them
+      if (billing?.subscription_status === 'active' && billing?.current_plan) {
+        currentPlan = billing.current_plan;
+      } else if (profile?.subscription_tier) {
+        currentPlan = profile.subscription_tier;
+      }
+      
+      console.log('Plan determination:', {
+        billingPlan: billing?.current_plan,
+        billingStatus: billing?.subscription_status,
+        profileTier: profile?.subscription_tier,
+        finalPlan: currentPlan
+      });
+
+      // If there's a mismatch between billing and profile, sync them
       if (billing?.current_plan !== profile?.subscription_tier) {
         console.log('Plan mismatch detected, syncing tables');
         
-        // Use the more recent update (billing_info takes precedence for active subscriptions)
-        const syncPlan = billing?.subscription_status === 'active' ? billing.current_plan : currentPlan;
-        
-        if (billing && billing.current_plan !== syncPlan) {
-          await supabase
-            .from('billing_info')
-            .update({ current_plan: syncPlan })
-            .eq('user_id', user.id);
-        }
-        
-        if (profile && profile.subscription_tier !== syncPlan) {
+        // Update profile to match billing if billing is active
+        if (billing?.subscription_status === 'active') {
           await supabase
             .from('user_profiles')
-            .update({ subscription_tier: syncPlan })
+            .update({ subscription_tier: billing.current_plan })
             .eq('id', user.id);
+        }
+        // Update billing to match profile if billing is inactive
+        else if (profile?.subscription_tier && profile.subscription_tier !== 'starter') {
+          await supabase
+            .from('billing_info')
+            .update({ current_plan: profile.subscription_tier })
+            .eq('user_id', user.id);
         }
       }
 
@@ -124,6 +135,7 @@ export const useSettings = () => {
       };
     },
     enabled: !!user?.id,
+    refetchInterval: 5000, // Refetch every 5 seconds to catch payment updates
   });
 
   const updateSettingsMutation = useMutation({
