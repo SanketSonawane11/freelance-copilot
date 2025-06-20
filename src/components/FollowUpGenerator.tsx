@@ -67,6 +67,9 @@ export const FollowUpGenerator = () => {
             followUpReason,
             tone,
             urgency,
+            // Add timestamp to force regeneration
+            timestamp: Date.now(),
+            randomSeed: Math.random().toString(36).substring(7)
           },
           plan: subscriptionTier === "pro" ? "pro" : "starter",
           user_id: userData?.profile?.id,

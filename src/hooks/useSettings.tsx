@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -24,7 +23,7 @@ export interface UserSettings {
 
 export interface BillingInfo {
   user_id: string;
-  current_plan: 'starter' | 'pro';
+  current_plan: 'starter' | 'basic' | 'pro';
   usage_proposals: number;
   usage_followups: number;
   renewal_date?: string;
@@ -70,6 +69,31 @@ export const useSettings = () => {
         throw profileError;
       }
 
+      // Ensure both billing and profile have same plan
+      const currentPlan = billing?.current_plan || profile?.subscription_tier || 'starter';
+      
+      // If there's a mismatch, sync them
+      if (billing?.current_plan !== profile?.subscription_tier) {
+        console.log('Plan mismatch detected, syncing tables');
+        
+        // Use the more recent update (billing_info takes precedence for active subscriptions)
+        const syncPlan = billing?.subscription_status === 'active' ? billing.current_plan : currentPlan;
+        
+        if (billing && billing.current_plan !== syncPlan) {
+          await supabase
+            .from('billing_info')
+            .update({ current_plan: syncPlan })
+            .eq('user_id', user.id);
+        }
+        
+        if (profile && profile.subscription_tier !== syncPlan) {
+          await supabase
+            .from('user_profiles')
+            .update({ subscription_tier: syncPlan })
+            .eq('id', user.id);
+        }
+      }
+
       return {
         settings: settings || {
           user_id: user.id,
@@ -86,7 +110,7 @@ export const useSettings = () => {
         },
         billing: billing || {
           user_id: user.id,
-          current_plan: 'starter' as const,
+          current_plan: currentPlan as 'starter' | 'basic' | 'pro',
           usage_proposals: 0,
           usage_followups: 0,
         },
@@ -95,6 +119,7 @@ export const useSettings = () => {
           name: '',
           profile_picture: null,
           login_method: 'email',
+          subscription_tier: currentPlan,
         }
       };
     },

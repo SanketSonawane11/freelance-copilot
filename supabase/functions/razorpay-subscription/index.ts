@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -173,8 +174,8 @@ async function handleCancelSubscription(req: Request, supabase: any) {
     })
   }
 
-  // Update billing_info to downgrade to starter
-  const { error: updateError } = await supabase
+  // Update both billing_info and user_profiles to downgrade to starter
+  const { error: billingError } = await supabase
     .from('billing_info')
     .update({
       current_plan: 'starter',
@@ -183,8 +184,15 @@ async function handleCancelSubscription(req: Request, supabase: any) {
     })
     .eq('user_id', user_id)
 
-  if (updateError) {
-    console.error('Database update error:', updateError)
+  const { error: profileError } = await supabase
+    .from('user_profiles')
+    .update({
+      subscription_tier: 'starter'
+    })
+    .eq('id', user_id)
+
+  if (billingError || profileError) {
+    console.error('Database update error:', billingError || profileError)
     return new Response(JSON.stringify({ error: 'Failed to cancel subscription' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -223,7 +231,10 @@ async function handleWebhook(req: Request, supabase: any) {
   if (event.event === 'payment.captured') {
     const payment = event.payload?.payment?.entity
     if (payment && payment.notes?.user_id && payment.notes?.plan) {
-      const { error: updateError } = await supabase
+      console.log(`Processing payment success for user ${payment.notes.user_id}, plan: ${payment.notes.plan}`)
+      
+      // Update billing_info
+      const { error: billingError } = await supabase
         .from('billing_info')
         .update({
           current_plan: payment.notes.plan,
@@ -233,12 +244,20 @@ async function handleWebhook(req: Request, supabase: any) {
         })
         .eq('user_id', payment.notes.user_id)
 
-      if (updateError) {
-        console.error('Webhook database update error:', updateError)
+      // Update user_profiles
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .update({
+          subscription_tier: payment.notes.plan
+        })
+        .eq('id', payment.notes.user_id)
+
+      if (billingError || profileError) {
+        console.error('Webhook database update error:', billingError || profileError)
         return new Response('Database error', { status: 500 })
       }
 
-      console.log(`Updated user ${payment.notes.user_id} to plan: ${payment.notes.plan}`)
+      console.log(`Successfully updated user ${payment.notes.user_id} to plan: ${payment.notes.plan}`)
     }
   }
 
