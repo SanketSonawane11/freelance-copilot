@@ -1,11 +1,23 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { FileText, Sparkles, Copy, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useUserData } from "@/hooks/useUserData";
@@ -27,7 +39,10 @@ export const FollowUpGenerator = () => {
 
   // Fetch dynamic proposal usage
   const { data: userData, isLoading: loadingUser } = useUserData();
-  const subscriptionTier = userData?.billingInfo?.current_plan || userData?.profile?.subscription_tier || "starter";
+  const subscriptionTier =
+    userData?.billingInfo?.current_plan ||
+    userData?.profile?.subscription_tier ||
+    "starter";
   const usageLimit = useUsageLimit("followup");
 
   const handleGenerate = async () => {
@@ -35,21 +50,23 @@ export const FollowUpGenerator = () => {
       toast.error("Please fill in all fields.");
       return;
     }
-  
+
     if (usageLimit.isLoading) {
       toast.loading("Checking usage...");
       return;
     }
-  
+
     if (!usageLimit.canIncrement) {
-      toast.error("You have reached your monthly follow-up limit for your plan.");
+      toast.error(
+        "You have reached your monthly follow-up limit for your plan."
+      );
       return;
     }
-  
+
     setIsGenerating(true);
     setUsedTokens(null);
     setAiModel(null);
-  
+
     try {
       await usageLimit.increment();
     } catch (err: any) {
@@ -57,37 +74,41 @@ export const FollowUpGenerator = () => {
       toast.error(err?.message || "Limit error. Please try again later.");
       return;
     }
-  
+
     try {
-      const { data: json, error } = await supabase.functions.invoke("generate-ai-content", {
-        body: {
-          type: "followup",
-          formInputs: {
-            clientName,
-            projectTitle,
-            lastContact,
-            followUpReason,
-            tone,
-            urgency,
-            timestamp: Date.now(),
-            randomSeed: Math.random().toString(36).substring(7)
+      const { data: json, error } = await supabase.functions.invoke(
+        "generate-ai-content",
+        {
+          body: {
+            type: "followup",
+            formInputs: {
+              clientName,
+              projectTitle,
+              lastContact,
+              followUpReason,
+              tone,
+              urgency,
+              timestamp: Date.now(),
+              randomSeed: Math.random().toString(36).substring(7),
+            },
+            plan: subscriptionTier === "pro" ? "pro" : "starter",
+            user_id: userData?.profile?.id,
+            prefer_gpt4o: false,
           },
-          plan: subscriptionTier === "pro" ? "pro" : "starter",
-          user_id: userData?.profile?.id,
-          prefer_gpt4o: false
         }
-      });
-  
+      );
+
       if (error) throw new Error(error.message || "AI generation error");
       if (!json) throw new Error("Empty AI response");
-  
+
       // ✅ Extract only the `content` key (formatted HTML)
-      const followUpText = typeof json === "object" && json.content ? json.content : "";
-  
+      const followUpText =
+        typeof json === "object" && json.content ? json.content : "";
+
       setGeneratedFollowUp(followUpText);
       setUsedTokens(json.tokens_used ?? null);
       setAiModel(json.model ?? null);
-  
+
       setIsGenerating(false);
       toast.success("Follow-up generated successfully! ✨");
     } catch (e: any) {
@@ -95,7 +116,6 @@ export const FollowUpGenerator = () => {
       toast.error(e?.message || "AI generation error.");
     }
   };
-  
 
   const handleCopy = () => {
     navigator.clipboard.writeText(generatedFollowUp);
@@ -119,8 +139,12 @@ export const FollowUpGenerator = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Follow-Up Generator</h1>
-          <p className="text-gray-600">Generate effective client follow-ups with AI</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            AI Follow-Up Generator
+          </h1>
+          <p className="text-gray-600">
+            Generate effective client follow-ups with AI
+          </p>
         </div>
         <Badge variant="outline" className="text-blue-600 border-blue-200">
           {usageLimit.isLoading
@@ -245,15 +269,26 @@ export const FollowUpGenerator = () => {
               <div className="space-y-4">
                 <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
                   <pre className="whitespace-pre-wrap text-sm text-gray-800 font-sans">
-                  <ReactMarkdown>{generatedFollowUp}</ReactMarkdown>
+                    <div
+                      className="prose max-w-none text-gray-800"
+                      dangerouslySetInnerHTML={{ __html: generatedFollowUp }}
+                    />
                   </pre>
                 </div>
                 <div className="flex space-x-2">
-                  <Button onClick={handleCopy} variant="outline" className="flex-1">
+                  <Button
+                    onClick={handleCopy}
+                    variant="outline"
+                    className="flex-1"
+                  >
                     <Copy className="w-4 h-4 mr-2" />
                     Copy
                   </Button>
-                  <Button onClick={handleDownload} variant="outline" className="flex-1">
+                  <Button
+                    onClick={handleDownload}
+                    variant="outline"
+                    className="flex-1"
+                  >
                     <Download className="w-4 h-4 mr-2" />
                     Download
                   </Button>
@@ -263,7 +298,9 @@ export const FollowUpGenerator = () => {
               <div className="text-center py-12 text-gray-500">
                 <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                 <p>Your generated follow-up will appear here</p>
-                <p className="text-sm">Fill in the details and click "Generate Follow-Up"</p>
+                <p className="text-sm">
+                  Fill in the details and click "Generate Follow-Up"
+                </p>
               </div>
             )}
           </CardContent>
