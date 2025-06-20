@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useUserData } from "@/hooks/useUserData";
 import { useUsageLimit } from "@/hooks/useUsageLimit";
 import { supabase } from "@/integrations/supabase/client";
+import ReactMarkdown from "react-markdown";
 
 export const FollowUpGenerator = () => {
   const [clientName, setClientName] = useState("");
@@ -42,11 +43,11 @@ export const FollowUpGenerator = () => {
       toast.error("You have reached your monthly follow-up limit for your plan.");
       return;
     }
-
+  
     setIsGenerating(true);
     setUsedTokens(null);
     setAiModel(null);
-
+  
     try {
       await usageLimit.increment();
     } catch (err: any) {
@@ -54,7 +55,7 @@ export const FollowUpGenerator = () => {
       toast.error(err?.message || "Limit error. Please try again later.");
       return;
     }
-
+  
     // Use Supabase client to call edge function (with auth, to avoid 401)
     try {
       const { data: json, error } = await supabase.functions.invoke("generate-ai-content", {
@@ -76,51 +77,96 @@ export const FollowUpGenerator = () => {
           prefer_gpt4o: false,
         }
       });
-
+  
       if (error) throw new Error(error.message || "AI generation error");
       if (!json) throw new Error("Empty AI response");
-
-      // Normalize followup extraction
+  
+      // Extract content from the response
       let followUpText = '';
+      
       if (typeof json === "string") {
         followUpText = json;
-      } else if ((json as any).followup) {
-        followUpText = (json as any).followup;
-      } else if ((json as any).choices && Array.isArray((json as any).choices) && (json as any).choices[0]?.message?.content) {
-        followUpText = (json as any).choices[0].message.content;
+      } else if (json && typeof json === "object") {
+        // Check for the "content" key first (based on your response structure)
+        if (json.content) {
+          followUpText = json.content;
+        } else if (json.followup) {
+          followUpText = json.followup;
+        } else if (json.raw_content) {
+          followUpText = json.raw_content;
+        } else if (json.choices && Array.isArray(json.choices) && json.choices[0]?.message?.content) {
+          followUpText = json.choices[0].message.content;
+        } else {
+          // Fallback to stringifying the entire response
+          followUpText = JSON.stringify(json);
+        }
       } else {
         followUpText = JSON.stringify(json);
       }
-
+  
+      // Clean up the text
+      followUpText = followUpText.trim();
+  
+      if (!followUpText) {
+        throw new Error("No content received from AI");
+      }
+  
       setGeneratedFollowUp(followUpText);
-      setUsedTokens((json as any).tokens_used ?? null);
-      setAiModel((json as any).model ?? null);
-
+      setUsedTokens(json?.tokens_used ?? null);
+      setAiModel(json?.model ?? null);
+  
       setIsGenerating(false);
       toast.success("Follow-up generated successfully! ✨");
     } catch (e: any) {
       setIsGenerating(false);
+      console.error("AI generation error:", e);
       toast.error(e?.message || "AI generation error.");
     }
   };
-
+  
   const handleCopy = () => {
+    if (!generatedFollowUp) {
+      toast.error("No content to copy");
+      return;
+    }
     navigator.clipboard.writeText(generatedFollowUp);
     toast.success("Follow-up copied to clipboard!");
   };
-
+  
   const handleDownload = () => {
+    if (!generatedFollowUp) {
+      toast.error("No content to download");
+      return;
+    }
     const blob = new Blob([generatedFollowUp], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "followup.txt";
+    a.download = `followup-${clientName || 'client'}-${Date.now()}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast.success("Follow-up downloaded!");
   };
+
+  // const handleCopy = () => {
+  //   navigator.clipboard.writeText(generatedFollowUp);
+  //   toast.success("Follow-up copied to clipboard!");
+  // };
+
+  // const handleDownload = () => {
+  //   const blob = new Blob([generatedFollowUp], { type: "text/plain" });
+  //   const url = URL.createObjectURL(blob);
+  //   const a = document.createElement("a");
+  //   a.href = url;
+  //   a.download = "followup.txt";
+  //   document.body.appendChild(a);
+  //   a.click();
+  //   document.body.removeChild(a);
+  //   URL.revokeObjectURL(url);
+  //   toast.success("Follow-up downloaded!");
+  // };
 
   return (
     <div className="space-y-6">
@@ -252,7 +298,7 @@ export const FollowUpGenerator = () => {
               <div className="space-y-4">
                 <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
                   <pre className="whitespace-pre-wrap text-sm text-gray-800 font-sans">
-                    {generatedFollowUp}
+                  <ReactMarkdown>{generatedFollowUp.content}</ReactMarkdown>
                   </pre>
                 </div>
                 <div className="flex space-x-2">
