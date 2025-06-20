@@ -35,19 +35,21 @@ export const FollowUpGenerator = () => {
       toast.error("Please fill in all fields.");
       return;
     }
+  
     if (usageLimit.isLoading) {
       toast.loading("Checking usage...");
       return;
     }
+  
     if (!usageLimit.canIncrement) {
       toast.error("You have reached your monthly follow-up limit for your plan.");
       return;
     }
-
+  
     setIsGenerating(true);
     setUsedTokens(null);
     setAiModel(null);
-
+  
     try {
       await usageLimit.increment();
     } catch (err: any) {
@@ -55,8 +57,7 @@ export const FollowUpGenerator = () => {
       toast.error(err?.message || "Limit error. Please try again later.");
       return;
     }
-
-    // Use Supabase client to call edge function (with auth, to avoid 401)
+  
     try {
       const { data: json, error } = await supabase.functions.invoke("generate-ai-content", {
         body: {
@@ -68,35 +69,25 @@ export const FollowUpGenerator = () => {
             followUpReason,
             tone,
             urgency,
-            // Add timestamp to force regeneration
             timestamp: Date.now(),
             randomSeed: Math.random().toString(36).substring(7)
           },
           plan: subscriptionTier === "pro" ? "pro" : "starter",
           user_id: userData?.profile?.id,
-          prefer_gpt4o: false,
+          prefer_gpt4o: false
         }
       });
-
+  
       if (error) throw new Error(error.message || "AI generation error");
       if (!json) throw new Error("Empty AI response");
-
-      // Normalize followup extraction
-      let followUpText = '';
-      if (typeof json === "string") {
-        followUpText = json;
-      } else if ((json as any).followup) {
-        followUpText = (json as any).followup;
-      } else if ((json as any).choices && Array.isArray((json as any).choices) && (json as any).choices[0]?.message?.content) {
-        followUpText = (json as any).choices[0].message.content;
-      } else {
-        followUpText = JSON.stringify(json);
-      }
-
+  
+      // ✅ Extract only the `content` key (formatted HTML)
+      const followUpText = typeof json === "object" && json.content ? json.content : "";
+  
       setGeneratedFollowUp(followUpText);
-      setUsedTokens((json as any).tokens_used ?? null);
-      setAiModel((json as any).model ?? null);
-
+      setUsedTokens(json.tokens_used ?? null);
+      setAiModel(json.model ?? null);
+  
       setIsGenerating(false);
       toast.success("Follow-up generated successfully! ✨");
     } catch (e: any) {
@@ -104,6 +95,7 @@ export const FollowUpGenerator = () => {
       toast.error(e?.message || "AI generation error.");
     }
   };
+  
 
   const handleCopy = () => {
     navigator.clipboard.writeText(generatedFollowUp);
