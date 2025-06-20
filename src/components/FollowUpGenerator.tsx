@@ -103,7 +103,9 @@ export const FollowUpGenerator = () => {
 
       // ✅ Extract only the `content` key (formatted HTML)
       const followUpText =
-        typeof json === "object" && json.content ? json.content : "";
+        typeof json === "object" && (json.content || json.raw_content)
+          ? json.content || json.raw_content
+          : "";
 
       setGeneratedFollowUp(followUpText);
       setUsedTokens(json.tokens_used ?? null);
@@ -269,10 +271,10 @@ export const FollowUpGenerator = () => {
               <div className="space-y-4">
                 <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
                   {/* <pre className="whitespace-pre-wrap text-sm text-gray-800 font-sans"> */}
-                    <div
-                      className="prose max-w-none text-gray-800"
-                      dangerouslySetInnerHTML={{ __html: generatedFollowUp }}
-                    />
+                  <div
+                    className="prose max-w-none text-gray-800"
+                    dangerouslySetInnerHTML={{ __html: generatedFollowUp }}
+                  />
                   {/* </pre> */}
                 </div>
                 <div className="flex space-x-2">
