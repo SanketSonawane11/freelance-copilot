@@ -10,10 +10,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const CHATGPT_API_KEY = Deno.env.get("CHATGPT_API_KEY");
-
-const GITHUB_AI_ENDPOINT = "https://models.github.ai/inference";
-const GITHUB_AI_MODEL = "gpt-4.1-2025-04-14";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -42,6 +39,13 @@ serve(async (req) => {
   if (!["proposal", "followup"].includes(type)) {
     return new Response(JSON.stringify({ error: "Invalid type" }), { 
       status: 400, 
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    });
+  }
+
+  if (!OPENAI_API_KEY) {
+    return new Response(JSON.stringify({ error: "OpenAI API key not configured" }), { 
+      status: 500, 
       headers: { ...corsHeaders, "Content-Type": "application/json" } 
     });
   }
@@ -81,44 +85,48 @@ Write a professional follow-up message. Use clear, readable text without JSON fo
   // Generate new content without caching
   let result_content = "";
   let tokens_used = 0;
-  let model_used = GITHUB_AI_MODEL;
+  let model_used = "gpt-4o-mini";
   let errorMsg = "";
 
   try {
-    console.log("Calling GitHub AI API with model:", GITHUB_AI_MODEL);
+    console.log("Calling OpenAI API with model:", model_used);
     
-    const response = await fetch(`${GITHUB_AI_ENDPOINT}/chat/completions`, {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${CHATGPT_API_KEY}`,
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
+        model: model_used,
         messages: [
           { role: "system", content: system_prompt },
           { role: "user", content: user_prompt },
         ],
         temperature,
-        top_p: 1,
-        model: GITHUB_AI_MODEL,
         max_tokens,
       }),
     });
 
-    const data = await response.json();
-    console.log("GitHub AI API response status:", response.status);
-    console.log("GitHub AI API response:", JSON.stringify(data, null, 2));
+    console.log("OpenAI API response status:", response.status);
 
-    if (!response.ok || (data?.error && !data?.choices)) {
-      errorMsg = data?.error?.message || data?.error || "GitHub AI API error";
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("OpenAI API error response:", errorText);
+      errorMsg = `OpenAI API error: ${response.status} - ${errorText}`;
+      throw new Error(errorMsg);
+    }
+
+    const data = await response.json();
+    console.log("OpenAI API response:", JSON.stringify(data, null, 2));
+
+    if (!data.choices || !data.choices[0]?.message?.content) {
+      errorMsg = "Invalid response from OpenAI API";
       throw new Error(errorMsg);
     }
 
     // Extract content from response
-    let content = data.choices && data.choices[0]?.message?.content
-      ? data.choices[0].message.content
-      : "";
-
+    let content = data.choices[0].message.content;
     tokens_used = data.usage?.total_tokens || 0;
     result_content = content.trim();
 
