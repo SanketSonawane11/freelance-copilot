@@ -17,10 +17,6 @@ const GITHUB_AI_MODEL = "gpt-4.1-2025-04-14";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-function hashObject(obj: Record<string, any>): string {
-  return btoa(JSON.stringify(obj)).slice(0, 32);
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -30,15 +26,24 @@ serve(async (req) => {
   try {
     params = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid payload" }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "Invalid payload" }), { 
+      status: 400, 
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    });
   }
   const { type, formInputs, plan = "starter", prefer_gpt4o = false, user_id } = params;
 
   if (!type || !formInputs || !user_id) {
-    return new Response(JSON.stringify({ error: "type, user_id, formInputs required" }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "type, user_id, formInputs required" }), { 
+      status: 400, 
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    });
   }
   if (!["proposal", "followup"].includes(type)) {
-    return new Response(JSON.stringify({ error: "Invalid type" }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "Invalid type" }), { 
+      status: 400, 
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    });
   }
 
   let system_prompt = "";
@@ -73,45 +78,7 @@ Urgency: ${formInputs.urgency || "Medium"}
 Write a professional follow-up message. Use clear, readable text without JSON formatting.`;
   }
 
-  const input_obj = { type, plan, formInputs, system_prompt, user_prompt, tone, max_tokens };
-  const input_hash = hashObject(input_obj);
-
-  // Check for previous generation (deduplication)
-  let { data: prev, error: prevErr } = await supabase
-    .from("ai_usage_logs")
-    .select("result_json, model_used, tokens_used")
-    .eq("input_hash", input_hash)
-    .eq("type", type)
-    .eq("user_id", user_id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (prev && prev.result_json) {
-    // Extract content from previous result
-    let content = "";
-    if (typeof prev.result_json === 'string') {
-      content = prev.result_json;
-    } else if (prev.result_json.content) {
-      content = prev.result_json.content;
-    } else if (prev.result_json.proposal) {
-      content = prev.result_json.proposal;
-    } else if (prev.result_json.followup) {
-      content = prev.result_json.followup;
-    }
-    
-    return new Response(
-      JSON.stringify({ 
-        content: content,
-        model: prev.model_used, 
-        tokens_used: prev.tokens_used, 
-        deduped: true 
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  // Generate new content
+  // Generate new content without caching
   let result_content = "";
   let tokens_used = 0;
   let model_used = GITHUB_AI_MODEL;
@@ -165,13 +132,12 @@ Write a professional follow-up message. Use clear, readable text without JSON fo
     );
   }
 
-  // Save usage log
+  // Save usage log (without deduplication)
   try {
     await supabase.from("ai_usage_logs").insert({
       user_id,
       type,
       model_used,
-      input_hash,
       tokens_used,
       result_json: { content: result_content },
     });
