@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +6,20 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, TrendingUp, FileText, AlertCircle, CheckCircle } from "lucide-react";
+import { Calculator, TrendingUp, FileText, AlertCircle, CheckCircle, Info } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
+interface TaxTip {
+  title: string;
+  description: string;
+  type: 'success' | 'warning' | 'info' | 'error';
+}
+
+interface TaxDate {
+  date: string;
+  event: string;
+}
 
 export const TaxEstimator = () => {
   const [annualIncome, setAnnualIncome] = useState("");
@@ -17,6 +28,101 @@ export const TaxEstimator = () => {
   const [investments, setInvestments] = useState("");
   const [hra, setHra] = useState("");
   const [calculatedTax, setCalculatedTax] = useState<any>(null);
+  const [taxTips, setTaxTips] = useState<TaxTip[]>([]);
+  const [importantDates, setImportantDates] = useState<TaxDate[]>([]);
+  const [financialYear, setFinancialYear] = useState("");
+  const [isLoadingTips, setIsLoadingTips] = useState(true);
+  const [isLoadingDates, setIsLoadingDates] = useState(true);
+
+  // Fetch dynamic tax tips
+  useEffect(() => {
+    const fetchTaxTips = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('tax-data', {
+          body: { type: 'tips' }
+        });
+        
+        if (error) throw error;
+        
+        setTaxTips(data.data || []);
+        setFinancialYear(data.financialYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`);
+      } catch (error) {
+        console.error('Error fetching tax tips:', error);
+        // Fallback tips
+        setTaxTips([
+          {
+            title: "Section 44ADA Benefits",
+            description: "If your income is below ₹50 lakhs, you can declare 50% as profit and pay tax only on that amount.",
+            type: "success"
+          },
+          {
+            title: "Quarterly Advance Tax",
+            description: "Pay advance tax by 15th June, Sept, Dec, and March to avoid interest charges.",
+            type: "warning"
+          },
+          {
+            title: "Business Expenses",
+            description: "Deduct laptop, software, internet, co-working space, and training costs.",
+            type: "info"
+          },
+          {
+            title: "Professional Tax",
+            description: "Don't forget to pay professional tax in states like Maharashtra, West Bengal, etc.",
+            type: "error"
+          }
+        ]);
+        setFinancialYear(`${new Date().getFullYear()}-${new Date().getFullYear() + 1}`);
+      } finally {
+        setIsLoadingTips(false);
+      }
+    };
+
+    fetchTaxTips();
+  }, []);
+
+  // Fetch important dates
+  useEffect(() => {
+    const fetchImportantDates = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('tax-data', {
+          body: { type: 'dates' }
+        });
+        
+        if (error) throw error;
+        
+        setImportantDates(data.data || []);
+      } catch (error) {
+        console.error('Error fetching tax dates:', error);
+        // Fallback dates
+        setImportantDates([
+          { date: "15 June", event: "Q1 Advance Tax Due" },
+          { date: "15 September", event: "Q2 Advance Tax Due" },
+          { date: "15 December", event: "Q3 Advance Tax Due" },
+          { date: "15 March", event: "Q4 Advance Tax Due" },
+          { date: "31 July", event: "ITR Filing Due Date" }
+        ]);
+      } finally {
+        setIsLoadingDates(false);
+      }
+    };
+
+    fetchImportantDates();
+  }, []);
+
+  const getIconForTipType = (type: string) => {
+    switch (type) {
+      case 'success':
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case 'warning':
+        return <AlertCircle className="w-5 h-5 text-yellow-500" />;
+      case 'info':
+        return <Info className="w-5 h-5 text-blue-500" />;
+      case 'error':
+        return <AlertCircle className="w-5 h-5 text-red-500" />;
+      default:
+        return <FileText className="w-5 h-5 text-blue-500" />;
+    }
+  };
 
   const calculateTax = () => {
     const income = parseFloat(annualIncome) || 0;
@@ -48,7 +154,7 @@ export const TaxEstimator = () => {
     } else if (taxableIncome <= 900000) {
       tax = 15000 + (taxableIncome - 600000) * 0.10;
     } else if (taxableIncome <= 1200000) {
-      tax = 45000 + (taxableIncome - 900000) * 0.15;
+      tax = 45000 + (taxableableIncome - 900000) * 0.15;
     } else if (taxableIncome <= 1500000) {
       tax = 90000 + (taxableIncome - 1200000) * 0.20;
     } else {
@@ -76,37 +182,6 @@ export const TaxEstimator = () => {
     toast.success("Tax calculation completed! 📊");
   };
 
-  const taxTips = [
-    {
-      title: "Section 44ADA Benefits",
-      description: "If your income is below ₹50 lakhs, you can declare 50% as profit and pay tax only on that amount.",
-      icon: <CheckCircle className="w-5 h-5 text-green-500" />
-    },
-    {
-      title: "Quarterly Advance Tax",
-      description: "Pay advance tax by 15th June, Sept, Dec, and March to avoid interest charges.",
-      icon: <AlertCircle className="w-5 h-5 text-yellow-500" />
-    },
-    {
-      title: "Business Expenses",
-      description: "Deduct laptop, software, internet, co-working space, and training costs.",
-      icon: <FileText className="w-5 h-5 text-blue-500" />
-    },
-    {
-      title: "Professional Tax",
-      description: "Don't forget to pay professional tax in states like Maharashtra, West Bengal, etc.",
-      icon: <AlertCircle className="w-5 h-5 text-orange-500" />
-    }
-  ];
-
-  const importantDates = [
-    { date: "15 June", event: "Q1 Advance Tax Due" },
-    { date: "15 September", event: "Q2 Advance Tax Due" },
-    { date: "15 December", event: "Q3 Advance Tax Due" },
-    { date: "15 March", event: "Q4 Advance Tax Due" },
-    { date: "31 July", event: "ITR Filing Due Date" }
-  ];
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -115,7 +190,7 @@ export const TaxEstimator = () => {
           <p className="text-gray-600">Calculate your income tax and get filing tips for Indian freelancers</p>
         </div>
         <Badge variant="outline" className="text-orange-600 border-orange-200">
-          FY 2024-25
+          FY {financialYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`}
         </Badge>
       </div>
 
@@ -285,45 +360,57 @@ export const TaxEstimator = () => {
         </TabsContent>
 
         <TabsContent value="tips" className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {taxTips.map((tip, index) => (
-              <Card key={index}>
-                <CardContent className="p-6">
-                  <div className="flex items-start space-x-3">
-                    {tip.icon}
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">{tip.title}</h3>
-                      <p className="text-sm text-gray-600">{tip.description}</p>
+          {isLoadingTips ? (
+            <div className="text-center py-8">
+              <p>Loading tax tips...</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-6">
+              {taxTips.map((tip, index) => (
+                <Card key={index}>
+                  <CardContent className="p-6">
+                    <div className="flex items-start space-x-3">
+                      {getIconForTipType(tip.type)}
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-2">{tip.title}</h3>
+                        <p className="text-sm text-gray-600">{tip.description}</p>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="dates" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Important Tax Dates for FY 2024-25</CardTitle>
+              <CardTitle>Important Tax Dates for FY {financialYear}</CardTitle>
               <CardDescription>
                 Mark these dates in your calendar to avoid penalties
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {importantDates.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-semibold text-gray-900">{item.event}</p>
-                      <p className="text-sm text-gray-600">Mark your calendar</p>
+              {isLoadingDates ? (
+                <div className="text-center py-8">
+                  <p>Loading important dates...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {importantDates.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-semibold text-gray-900">{item.event}</p>
+                        <p className="text-sm text-gray-600">Mark your calendar</p>
+                      </div>
+                      <Badge variant="outline" className="text-red-600 border-red-200">
+                        {item.date}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-red-600 border-red-200">
-                      {item.date}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

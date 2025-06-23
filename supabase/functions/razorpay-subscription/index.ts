@@ -195,6 +195,7 @@ async function handleWebhook(req: Request, supabase: any) {
   const signature = req.headers.get('x-razorpay-signature')
 
   if (!signature) {
+    console.error('Missing webhook signature')
     return new Response('Missing signature', { status: 400 })
   }
 
@@ -229,50 +230,111 @@ async function handleWebhook(req: Request, supabase: any) {
       console.log(`Updating user ${userId} to plan ${plan} with period end: ${periodEnd}`)
       
       try {
-        // Update billing_info first
-        const { data: billingData, error: billingError } = await supabase
+        // Start a transaction-like approach with proper error handling
+        console.log('Step 1: Updating billing_info table')
+        
+        // First, ensure billing_info record exists
+        const { data: existingBilling } = await supabase
           .from('billing_info')
-          .upsert({
-            user_id: userId,
-            current_plan: plan,
-            subscription_status: 'active',
-            current_period_end: periodEnd,
-            updated_at: new Date().toISOString()
-          }, { 
-            onConflict: 'user_id',
-            ignoreDuplicates: false 
-          })
-          .select()
+          .select('user_id')
+          .eq('user_id', userId)
+          .single()
 
-        if (billingError) {
-          console.error('Billing update error:', billingError)
-          return new Response('Billing update failed', { status: 500 })
+        if (!existingBilling) {
+          console.log('Creating new billing_info record')
+          const { error: createError } = await supabase
+            .from('billing_info')
+            .insert({
+              user_id: userId,
+              current_plan: plan,
+              subscription_status: 'active',
+              current_period_end: periodEnd,
+              usage_proposals: 0,
+              usage_followups: 0,
+              updated_at: new Date().toISOString()
+            })
+          
+          if (createError) {
+            console.error('Error creating billing record:', createError)
+            throw createError
+          }
+        } else {
+          console.log('Updating existing billing_info record')
+          const { error: updateBillingError } = await supabase
+            .from('billing_info')
+            .update({
+              current_plan: plan,
+              subscription_status: 'active',
+              current_period_end: periodEnd,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', userId)
+
+          if (updateBillingError) {
+            console.error('Billing update error:', updateBillingError)
+            throw updateBillingError
+          }
         }
         
-        console.log('Billing info updated successfully:', billingData)
-
-        // Update user_profiles
-        const { data: profileData, error: profileError } = await supabase
+        console.log('Step 2: Updating user_profiles table')
+        
+        // Ensure user_profiles record exists and update it
+        const { data: existingProfile } = await supabase
           .from('user_profiles')
-          .upsert({
-            id: userId,
-            subscription_tier: plan
-          }, { 
-            onConflict: 'id',
-            ignoreDuplicates: false 
-          })
-          .select()
+          .select('id')
+          .eq('id', userId)
+          .single()
 
-        if (profileError) {
-          console.error('Profile update error:', profileError)
-          return new Response('Profile update failed', { status: 500 })
+        if (!existingProfile) {
+          console.log('Creating new user_profiles record')
+          const { error: createProfileError } = await supabase
+            .from('user_profiles')
+            .insert({
+              id: userId,
+              subscription_tier: plan,
+              name: '',
+              is_active: true
+            })
+          
+          if (createProfileError) {
+            console.error('Error creating profile record:', createProfileError)
+            throw createProfileError
+          }
+        } else {
+          console.log('Updating existing user_profiles record')
+          const { error: updateProfileError } = await supabase
+            .from('user_profiles')
+            .update({
+              subscription_tier: plan
+            })
+            .eq('id', userId)
+
+          if (updateProfileError) {
+            console.error('Profile update error:', updateProfileError)
+            throw updateProfileError
+          }
         }
         
-        console.log('Profile updated successfully:', profileData)
-        console.log(`Successfully updated user ${userId} to plan: ${plan}`)
+        console.log(`✅ Successfully updated user ${userId} to plan: ${plan}`)
+        
+        // Verify the updates worked
+        const { data: verifyBilling } = await supabase
+          .from('billing_info')
+          .select('current_plan, subscription_status')
+          .eq('user_id', userId)
+          .single()
+        
+        const { data: verifyProfile } = await supabase
+          .from('user_profiles')
+          .select('subscription_tier')
+          .eq('id', userId)
+          .single()
+        
+        console.log('Verification - Billing:', verifyBilling)
+        console.log('Verification - Profile:', verifyProfile)
         
       } catch (error) {
-        console.error('Database operation failed:', error)
+        console.error('❌ Database operation failed:', error)
         return new Response('Database error', { status: 500 })
       }
     } else {
