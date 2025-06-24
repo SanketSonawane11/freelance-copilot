@@ -71,77 +71,146 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     })
   }
 
-  // Create shorter receipt ID (max 40 chars)
-  const timestamp = Date.now().toString()
-  const userIdShort = user_id.substring(0, 8) // First 8 chars of UUID
-  const receipt = `rcpt_${userIdShort}_${timestamp}`
-  
-  console.log(`Generated receipt ID: ${receipt} (length: ${receipt.length})`)
-
-  // Create Razorpay order (not subscription) for one-time payment
+  // Create Razorpay subscription instead of one-time order
   const razorpayAuth = btoa(`${Deno.env.get('RAZORPAY_KEY_ID')}:${Deno.env.get('RAZORPAY_SECRET')}`)
   
-  const orderData = {
-    amount: amount, // amount in paise
-    currency: 'INR',
-    receipt: receipt,
-    notes: {
-      user_id: user_id,
-      plan: plan
+  // First, create or get customer
+  let customerId;
+  try {
+    // Check if customer exists
+    const customerResponse = await fetch(`https://api.razorpay.com/v1/customers?email=${user.email}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${razorpayAuth}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const customerData = await customerResponse.json();
+    
+    if (customerData.items && customerData.items.length > 0) {
+      customerId = customerData.items[0].id;
+      console.log('Found existing customer:', customerId);
+    } else {
+      // Create new customer
+      const newCustomerResponse = await fetch('https://api.razorpay.com/v1/customers', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${razorpayAuth}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: user.email.split('@')[0],
+          email: user.email,
+          contact: '',
+        })
+      });
+
+      const newCustomer = await newCustomerResponse.json();
+      customerId = newCustomer.id;
+      console.log('Created new customer:', customerId);
     }
-  }
-
-  console.log('Creating Razorpay order with data:', JSON.stringify(orderData, null, 2))
-
-  const razorpayResponse = await fetch('https://api.razorpay.com/v1/orders', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${razorpayAuth}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(orderData)
-  })
-
-  const responseText = await razorpayResponse.text()
-  console.log(`Razorpay API response status: ${razorpayResponse.status}`)
-  console.log('Razorpay API response:', responseText)
-
-  if (!razorpayResponse.ok) {
-    console.error('Razorpay API error:', responseText)
-    return new Response(JSON.stringify({ 
-      error: 'Failed to create payment order',
-      details: responseText,
-      status: razorpayResponse.status
-    }), {
+  } catch (error) {
+    console.error('Customer creation/fetch error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to create customer' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 
-  let order
+  // Create subscription plan if it doesn't exist
+  const planId = `${plan}_monthly_${amount}`;
   try {
-    order = JSON.parse(responseText)
+    const planResponse = await fetch('https://api.razorpay.com/v1/plans', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${razorpayAuth}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        period: 'monthly',
+        interval: 1,
+        item: {
+          name: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`,
+          amount: amount,
+          currency: 'INR'
+        },
+        id: planId
+      })
+    });
+
+    if (!planResponse.ok && planResponse.status !== 400) { // 400 means plan already exists
+      throw new Error('Failed to create plan');
+    }
+  } catch (error) {
+    console.log('Plan creation error (might already exist):', error);
+  }
+
+  // Create subscription
+  const subscriptionData = {
+    plan_id: planId,
+    customer_id: customerId,
+    quantity: 1,
+    total_count: 12, // 12 months
+    notes: {
+      user_id: user_id,
+      plan: plan
+    },
+    notify: 1
+  };
+
+  console.log('Creating Razorpay subscription with data:', JSON.stringify(subscriptionData, null, 2));
+
+  const subscriptionResponse = await fetch('https://api.razorpay.com/v1/subscriptions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${razorpayAuth}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(subscriptionData)
+  });
+
+  const responseText = await subscriptionResponse.text();
+  console.log(`Razorpay subscription API response status: ${subscriptionResponse.status}`);
+  console.log('Razorpay subscription API response:', responseText);
+
+  if (!subscriptionResponse.ok) {
+    console.error('Razorpay subscription API error:', responseText);
+    return new Response(JSON.stringify({ 
+      error: 'Failed to create subscription',
+      details: responseText,
+      status: subscriptionResponse.status
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  let subscription;
+  try {
+    subscription = JSON.parse(responseText);
   } catch (parseError) {
-    console.error('Failed to parse Razorpay response:', parseError)
+    console.error('Failed to parse Razorpay subscription response:', parseError);
     return new Response(JSON.stringify({ 
       error: 'Invalid response from payment gateway',
       details: responseText
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    });
   }
 
-  console.log('Order created successfully:', order.id)
+  console.log('Subscription created successfully:', subscription.id);
   return new Response(JSON.stringify({
-    order_id: order.id,
+    subscription_id: subscription.id,
     key_id: Deno.env.get('RAZORPAY_KEY_ID'),
     amount: amount,
     plan: plan,
-    currency: 'INR'
+    currency: 'INR',
+    short_url: subscription.short_url
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  })
+  });
 }
 
 async function handleCancelSubscription(req: Request, supabase: any) {
@@ -160,12 +229,37 @@ async function handleCancelSubscription(req: Request, supabase: any) {
     })
   }
 
+  // Get current subscription
+  const { data: billingInfo } = await supabase
+    .from('billing_info')
+    .select('razorpay_subscription_id')
+    .eq('user_id', user_id)
+    .single()
+
+  if (billingInfo?.razorpay_subscription_id) {
+    // Cancel Razorpay subscription
+    const razorpayAuth = btoa(`${Deno.env.get('RAZORPAY_KEY_ID')}:${Deno.env.get('RAZORPAY_SECRET')}`)
+    
+    try {
+      await fetch(`https://api.razorpay.com/v1/subscriptions/${billingInfo.razorpay_subscription_id}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${razorpayAuth}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ cancel_at_cycle_end: 1 })
+      });
+    } catch (error) {
+      console.error('Failed to cancel Razorpay subscription:', error);
+    }
+  }
+
   // Update both billing_info and user_profiles to downgrade to starter
   const { error: billingError } = await supabase
     .from('billing_info')
     .update({
       current_plan: 'starter',
-      subscription_status: 'inactive',
+      subscription_status: 'cancelled',
       updated_at: new Date().toISOString()
     })
     .eq('user_id', user_id)
@@ -215,130 +309,177 @@ async function handleWebhook(req: Request, supabase: any) {
   console.log('Razorpay webhook received:', event.event)
   console.log('Full event payload:', JSON.stringify(event, null, 2))
 
-  // Handle payment success
-  if (event.event === 'payment.captured') {
-    const payment = event.payload?.payment?.entity
-    if (payment && payment.notes?.user_id && payment.notes?.plan) {
-      console.log(`Processing payment success for user ${payment.notes.user_id}, plan: ${payment.notes.plan}`)
+  // Handle subscription activation
+  if (event.event === 'subscription.activated') {
+    const subscription = event.payload?.subscription?.entity
+    if (subscription && subscription.notes?.user_id && subscription.notes?.plan) {
+      console.log(`Processing subscription activation for user ${subscription.notes.user_id}, plan: ${subscription.notes.plan}`)
       
-      const userId = payment.notes.user_id
-      const plan = payment.notes.plan
+      const userId = subscription.notes.user_id
+      const plan = subscription.notes.plan
       
-      // Calculate period end (30 days from now)
+      // Calculate period end (30 days from now for monthly subscription)
       const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
       
       console.log(`Updating user ${userId} to plan ${plan} with period end: ${periodEnd}`)
       
       try {
-        // Start a transaction-like approach with proper error handling
-        console.log('Step 1: Updating billing_info table')
-        
-        // First, ensure billing_info record exists
-        const { data: existingBilling } = await supabase
+        // Update billing_info with full subscription details
+        const { error: billingError } = await supabase
           .from('billing_info')
-          .select('user_id')
-          .eq('user_id', userId)
-          .single()
+          .upsert({
+            user_id: userId,
+            current_plan: plan,
+            subscription_status: 'active',
+            current_period_end: periodEnd,
+            renewal_date: renewalDate,
+            razorpay_customer_id: subscription.customer_id,
+            razorpay_subscription_id: subscription.id,
+            usage_proposals: 0, // Reset usage on new subscription
+            usage_followups: 0,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id' })
 
-        if (!existingBilling) {
-          console.log('Creating new billing_info record')
-          const { error: createError } = await supabase
-            .from('billing_info')
-            .insert({
-              user_id: userId,
-              current_plan: plan,
-              subscription_status: 'active',
-              current_period_end: periodEnd,
-              usage_proposals: 0,
-              usage_followups: 0,
-              updated_at: new Date().toISOString()
-            })
-          
-          if (createError) {
-            console.error('Error creating billing record:', createError)
-            throw createError
-          }
-        } else {
-          console.log('Updating existing billing_info record')
-          const { error: updateBillingError } = await supabase
-            .from('billing_info')
-            .update({
-              current_plan: plan,
-              subscription_status: 'active',
-              current_period_end: periodEnd,
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', userId)
-
-          if (updateBillingError) {
-            console.error('Billing update error:', updateBillingError)
-            throw updateBillingError
-          }
+        if (billingError) {
+          console.error('Billing update error:', billingError)
+          throw billingError
         }
         
-        console.log('Step 2: Updating user_profiles table')
-        
-        // Ensure user_profiles record exists and update it
-        const { data: existingProfile } = await supabase
+        // Update user_profiles
+        const { error: profileError } = await supabase
           .from('user_profiles')
-          .select('id')
+          .update({
+            subscription_tier: plan
+          })
           .eq('id', userId)
-          .single()
 
-        if (!existingProfile) {
-          console.log('Creating new user_profiles record')
-          const { error: createProfileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              id: userId,
-              subscription_tier: plan,
-              name: '',
-              is_active: true
-            })
-          
-          if (createProfileError) {
-            console.error('Error creating profile record:', createProfileError)
-            throw createProfileError
-          }
-        } else {
-          console.log('Updating existing user_profiles record')
-          const { error: updateProfileError } = await supabase
-            .from('user_profiles')
-            .update({
-              subscription_tier: plan
-            })
-            .eq('id', userId)
+        if (profileError) {
+          console.error('Profile update error:', profileError)
+          throw profileError
+        }
 
-          if (updateProfileError) {
-            console.error('Profile update error:', updateProfileError)
-            throw updateProfileError
-          }
+        // Reset current month usage in usage_stats
+        const currentMonth = new Date().toISOString().substring(0, 7) + '-01'
+        const { error: usageError } = await supabase
+          .from('usage_stats')
+          .upsert({
+            user_id: userId,
+            month: currentMonth,
+            proposals_used: 0,
+            followups_used: 0,
+            tokens_used: 0
+          }, { onConflict: 'user_id,month' })
+
+        if (usageError) {
+          console.error('Usage stats reset error:', usageError)
         }
         
-        console.log(`✅ Successfully updated user ${userId} to plan: ${plan}`)
-        
-        // Verify the updates worked
-        const { data: verifyBilling } = await supabase
-          .from('billing_info')
-          .select('current_plan, subscription_status')
-          .eq('user_id', userId)
-          .single()
-        
-        const { data: verifyProfile } = await supabase
-          .from('user_profiles')
-          .select('subscription_tier')
-          .eq('id', userId)
-          .single()
-        
-        console.log('Verification - Billing:', verifyBilling)
-        console.log('Verification - Profile:', verifyProfile)
+        console.log(`✅ Successfully activated subscription for user ${userId} to plan: ${plan}`)
         
       } catch (error) {
         console.error('❌ Database operation failed:', error)
         return new Response('Database error', { status: 500 })
       }
-    } else {
-      console.log('Missing payment notes or incomplete data:', payment)
+    }
+  }
+
+  // Handle subscription charged (monthly renewal)
+  if (event.event === 'subscription.charged') {
+    const payment = event.payload?.payment?.entity
+    const subscription = event.payload?.subscription?.entity
+    
+    if (payment && subscription && subscription.notes?.user_id) {
+      console.log(`Processing subscription renewal for user ${subscription.notes.user_id}`)
+      
+      const userId = subscription.notes.user_id
+      const plan = subscription.notes.plan || 'basic'
+      
+      // Calculate next period end
+      const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      
+      try {
+        // Update billing info with new period
+        const { error: billingError } = await supabase
+          .from('billing_info')
+          .update({
+            current_period_end: periodEnd,
+            renewal_date: renewalDate,
+            subscription_status: 'active',
+            usage_proposals: 0, // Reset monthly usage
+            usage_followups: 0,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+
+        if (billingError) {
+          console.error('Billing renewal update error:', billingError)
+          throw billingError
+        }
+
+        // Reset current month usage in usage_stats
+        const currentMonth = new Date().toISOString().substring(0, 7) + '-01'
+        const { error: usageError } = await supabase
+          .from('usage_stats')
+          .upsert({
+            user_id: userId,
+            month: currentMonth,
+            proposals_used: 0,
+            followups_used: 0,
+            tokens_used: 0
+          }, { onConflict: 'user_id,month' })
+
+        if (usageError) {
+          console.error('Usage stats reset error:', usageError)
+        }
+        
+        console.log(`✅ Successfully renewed subscription for user ${userId}`)
+        
+      } catch (error) {
+        console.error('❌ Subscription renewal failed:', error)
+        return new Response('Database error', { status: 500 })
+      }
+    }
+  }
+
+  // Handle subscription cancelled
+  if (event.event === 'subscription.cancelled') {
+    const subscription = event.payload?.subscription?.entity
+    if (subscription && subscription.notes?.user_id) {
+      const userId = subscription.notes.user_id
+      
+      console.log(`Processing subscription cancellation for user ${userId}`)
+      
+      try {
+        // Update to starter plan
+        const { error: billingError } = await supabase
+          .from('billing_info')
+          .update({
+            current_plan: 'starter',
+            subscription_status: 'cancelled',
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .update({
+            subscription_tier: 'starter'
+          })
+          .eq('id', userId)
+
+        if (billingError || profileError) {
+          console.error('Cancellation update error:', billingError || profileError)
+          throw billingError || profileError
+        }
+        
+        console.log(`✅ Successfully cancelled subscription for user ${userId}`)
+        
+      } catch (error) {
+        console.error('❌ Subscription cancellation failed:', error)
+        return new Response('Database error', { status: 500 })
+      }
     }
   }
 

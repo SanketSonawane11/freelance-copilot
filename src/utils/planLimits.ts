@@ -49,3 +49,18 @@ export function canUserAccessFeature(
   const limits = getPlanLimits(currentPlan);
   return currentUsage < limits[featureType];
 }
+
+// Helper function to get plan display name
+export function getPlanDisplayName(plan: string): string {
+  const names = {
+    starter: 'Starter Plan',
+    basic: 'Basic Plan', 
+    pro: 'Pro Plan'
+  };
+  return names[plan as keyof typeof names] || 'Unknown Plan';
+}
+
+// Helper function to check if plan is paid
+export function isPaidPlan(plan: string): boolean {
+  return plan === 'basic' || plan === 'pro';
+}
