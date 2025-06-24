@@ -89,7 +89,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({ data }) => {
             <div className="space-y-3">
               <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-100">
                 <h5 className="font-semibold text-blue-800 mb-2">Basic Plan - {getPlanPrice('basic').display}/month</h5>
-                <p className="text-blue-700 mb-3">{planLimits.proposals} AI proposals, {planLimits.followups} follow-ups, priority support</p>
+                <p className="text-blue-700 mb-3">{getPlanLimits('basic').proposals} AI proposals, {getPlanLimits('basic').followups} follow-ups, priority support</p>
                 <Button 
                   onClick={() => handleUpgrade('basic')}
                   disabled={isCreating}

@@ -10,20 +10,20 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
   starter: {
     proposals: 10,
     followups: 10,
-    invoices: 50,
-    clients: 20,
+    invoices: 3,
+    clients: 2,
   },
   basic: {
     proposals: 50,
     followups: 50,
-    invoices: 200,
-    clients: 100,
+    invoices: 30,
+    clients: 10,
   },
   pro: {
     proposals: 100,
     followups: 100,
-    invoices: 1000,
-    clients: 500,
+    invoices: 50,
+    clients: 30,
   },
 };
 

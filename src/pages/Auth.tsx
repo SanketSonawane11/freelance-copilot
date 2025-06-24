@@ -227,8 +227,8 @@ const Auth = () => {
                     features={[
                       "10 AI proposals/month",
                       "10 smart follow-ups/month",
-                      "Basic invoice generation",
-                      "Community support"
+                      "Basic invoice generation (3 Invoices/month)",
+                      "Upto 2 clients",
                     ]}
                   />
                   <PlanCard
@@ -238,9 +238,10 @@ const Auth = () => {
                     features={[
                       "50 AI proposals/month",
                       "50 smart follow-ups/month",
-                      "Advanced invoice features",
+                      "Added invoice generation limit (30 Invoices/month)",
+                      "Tax estimation tools",
+                      "Upto 10 Clients",
                       "Priority support",
-                      "Tax estimation tools"
                     ]}
                     popular={true}
                   />
@@ -252,9 +253,10 @@ const Auth = () => {
                       "100 AI proposals/month",
                       "100 smart follow-ups/month",
                       "All premium features",
-                      "Advanced AI customization",
-                      "Dedicated support",
-                      "Priority processing"
+                      "Maximum invoice generation limit (50 invoices/month)",
+                      "Upto 30 Clients",
+                      "Tax estimation tools",
+                      "Priority support",
                     ]}
                   />
                 </div>

@@ -101,7 +101,6 @@ export const FollowUpGenerator = () => {
       if (error) throw new Error(error.message || "AI generation error");
       if (!json) throw new Error("Empty AI response");
 
-      // ✅ Extract only the `content` key (formatted HTML)
       const followUpText =
         typeof json === "object" && (json.content || json.raw_content)
           ? json.content || json.raw_content
