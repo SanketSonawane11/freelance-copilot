@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,9 +28,6 @@ export const ProposalWriter = () => {
   // Fetch dynamic proposal usage
   const { data: userData, isLoading: loadingUser } = useUserData();
   const subscriptionTier = userData?.billingInfo?.current_plan || userData?.profile?.subscription_tier || 'starter';
-  const proposalLimit = subscriptionTier === 'pro' ? 100 : 10;
-  const proposalsUsed = userData?.proposalsCount || 0;
-
   const usageLimit = useUsageLimit("proposal");
 
   const handleGenerate = async () => {
@@ -46,6 +44,12 @@ export const ProposalWriter = () => {
       return;
     }
 
+    console.log('🚀 Generating proposal...', {
+      clientName: clientInfo,
+      projectLength: projectDetails.length,
+      forceRegenerate: false
+    });
+
     setIsGenerating(true);
     setUsedTokens(null);
     setAiModel(null);
@@ -58,7 +62,6 @@ export const ProposalWriter = () => {
       return;
     }
 
-    // Use Supabase client to call edge function (fix 401 error)
     try {
       const { data: json, error } = await supabase.functions.invoke("generate-ai-content", {
         body: {
@@ -80,26 +83,18 @@ export const ProposalWriter = () => {
       if (error) throw new Error(error.message || "AI generation error");
       if (!json) throw new Error("Empty AI response");
 
-      // Normalize proposal extraction (again for safety)
-      let proposalText = '';
-      if (typeof json === 'string') {
-        proposalText = json;
-      } else if ((json as any).proposal) {
-        proposalText = (json as any).proposal;
-      } else if ((json as any).choices && Array.isArray((json as any).choices) && (json as any).choices[0]?.message?.content) {
-        proposalText = (json as any).choices[0].message.content;
-      } else {
-        proposalText = JSON.stringify(json);
-      }
+      // Extract the content directly - it should now be clean text
+      const proposalText = json.content || "";
 
       setGeneratedProposal(proposalText);
-      setUsedTokens((json as any).tokens_used ?? null);
-      setAiModel((json as any).model ?? null);
+      setUsedTokens(json.tokens_used ?? null);
+      setAiModel(json.model ?? null);
 
       setIsGenerating(false);
       toast.success("Proposal generated successfully! ✨");
     } catch (e: any) {
       setIsGenerating(false);
+      console.error('Error generating proposal:', e);
       toast.error(e?.message || "AI generation error.");
     }
   };

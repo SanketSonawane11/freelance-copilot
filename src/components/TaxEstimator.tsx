@@ -4,330 +4,296 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, TrendingUp, FileText, AlertCircle, CheckCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calculator, TrendingUp, Calendar, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const TaxEstimator = () => {
-  const [annualIncome, setAnnualIncome] = useState("");
+  const [income, setIncome] = useState("");
+  const [expenses, setExpenses] = useState("");
   const [taxRegime, setTaxRegime] = useState("new");
-  const [age, setAge] = useState("below60");
-  const [investments, setInvestments] = useState("");
-  const [hra, setHra] = useState("");
-  const [calculatedTax, setCalculatedTax] = useState<any>(null);
+  const [result, setResult] = useState<any>(null);
+  const [taxTips, setTaxTips] = useState<any[]>([]);
+  const [importantDates, setImportantDates] = useState<any[]>([]);
+  const [currentFinancialYear, setCurrentFinancialYear] = useState("");
+  const [isLoadingTips, setIsLoadingTips] = useState(false);
+  const [isLoadingDates, setIsLoadingDates] = useState(false);
 
   const calculateTax = () => {
-    const income = parseFloat(annualIncome) || 0;
-    
-    if (income <= 0) {
-      toast.error("Please enter a valid annual income");
-      return;
-    }
+    const grossIncome = parseFloat(income) || 0;
+    const totalExpenses = parseFloat(expenses) || 0;
+    const taxableIncome = Math.max(0, grossIncome - totalExpenses);
 
-    // Simplified tax calculation for Indian freelancers
-    let taxableIncome = income;
     let tax = 0;
-    let cess = 0;
+    let effectiveRate = 0;
 
-    if (taxRegime === "old") {
-      // Old regime with standard deduction and investments
-      const standardDeduction = Math.min(50000, income);
-      const section80C = Math.min(150000, parseFloat(investments) || 0);
-      const hraDeduction = parseFloat(hra) || 0;
-      
-      taxableIncome = income - standardDeduction - section80C - hraDeduction;
-    }
-
-    // Tax slabs for new regime (FY 2023-24)
-    if (taxableIncome <= 300000) {
-      tax = 0;
-    } else if (taxableIncome <= 600000) {
-      tax = (taxableIncome - 300000) * 0.05;
-    } else if (taxableIncome <= 900000) {
-      tax = 15000 + (taxableIncome - 600000) * 0.10;
-    } else if (taxableIncome <= 1200000) {
-      tax = 45000 + (taxableIncome - 900000) * 0.15;
-    } else if (taxableIncome <= 1500000) {
-      tax = 90000 + (taxableIncome - 1200000) * 0.20;
+    if (taxRegime === "new") {
+      // New Tax Regime (FY 2023-24 rates)
+      if (taxableIncome <= 300000) {
+        tax = 0;
+      } else if (taxableIncome <= 600000) {
+        tax = (taxableIncome - 300000) * 0.05;
+      } else if (taxableIncome <= 900000) {
+        tax = 15000 + (taxableIncome - 600000) * 0.10;
+      } else if (taxableIncome <= 1200000) {
+        tax = 45000 + (taxableIncome - 900000) * 0.15;
+      } else if (taxableIncome <= 1500000) {
+        tax = 90000 + (taxableIncome - 1200000) * 0.20;
+      } else {
+        tax = 150000 + (taxableIncome - 1500000) * 0.30;
+      }
     } else {
-      tax = 150000 + (taxableIncome - 1500000) * 0.30;
+      // Old Tax Regime
+      if (taxableIncome <= 250000) {
+        tax = 0;
+      } else if (taxableIncome <= 500000) {
+        tax = (taxableIncome - 250000) * 0.05;
+      } else if (taxableIncome <= 1000000) {
+        tax = 12500 + (taxableIncome - 500000) * 0.20;
+      } else {
+        tax = 112500 + (taxableIncome - 1000000) * 0.30;
+      }
     }
 
-    // Health and Education Cess (4%)
-    cess = tax * 0.04;
-    const totalTax = tax + cess;
+    effectiveRate = taxableIncome > 0 ? (tax / taxableIncome) * 100 : 0;
 
-    // Quarterly payments
-    const quarterlyTax = totalTax / 4;
+    // Add 4% Health and Education Cess
+    const cessAmount = tax * 0.04;
+    const totalTax = tax + cessAmount;
 
-    setCalculatedTax({
-      grossIncome: income,
+    setResult({
+      grossIncome,
+      totalExpenses,
       taxableIncome,
-      incomeTax: tax,
-      cess,
-      totalTax,
-      quarterlyTax,
-      takeHome: income - totalTax,
-      effectiveRate: (totalTax / income) * 100
+      tax: totalTax,
+      effectiveRate,
+      cessAmount,
+      regime: taxRegime
     });
 
-    toast.success("Tax calculation completed! 📊");
+    toast.success("Tax calculation completed!");
   };
 
-  const taxTips = [
-    {
-      title: "Section 44ADA Benefits",
-      description: "If your income is below ₹50 lakhs, you can declare 50% as profit and pay tax only on that amount.",
-      icon: <CheckCircle className="w-5 h-5 text-green-500" />
-    },
-    {
-      title: "Quarterly Advance Tax",
-      description: "Pay advance tax by 15th June, Sept, Dec, and March to avoid interest charges.",
-      icon: <AlertCircle className="w-5 h-5 text-yellow-500" />
-    },
-    {
-      title: "Business Expenses",
-      description: "Deduct laptop, software, internet, co-working space, and training costs.",
-      icon: <FileText className="w-5 h-5 text-blue-500" />
-    },
-    {
-      title: "Professional Tax",
-      description: "Don't forget to pay professional tax in states like Maharashtra, West Bengal, etc.",
-      icon: <AlertCircle className="w-5 h-5 text-orange-500" />
+  const fetchTaxTips = async () => {
+    setIsLoadingTips(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('tax-data', {
+        body: { type: 'tips' }
+      });
+      
+      if (error) throw error;
+      
+      setTaxTips(data?.data || []);
+      setCurrentFinancialYear(data?.financialYear || "2025-26");
+      toast.success("Tax tips updated!");
+    } catch (error) {
+      console.error('Error fetching tax tips:', error);
+      toast.error("Failed to fetch tax tips");
+    } finally {
+      setIsLoadingTips(false);
     }
-  ];
+  };
 
-  const importantDates = [
-    { date: "15 June", event: "Q1 Advance Tax Due" },
-    { date: "15 September", event: "Q2 Advance Tax Due" },
-    { date: "15 December", event: "Q3 Advance Tax Due" },
-    { date: "15 March", event: "Q4 Advance Tax Due" },
-    { date: "31 July", event: "ITR Filing Due Date" }
-  ];
+  const fetchImportantDates = async () => {
+    setIsLoadingDates(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('tax-data', {
+        body: { type: 'dates' }
+      });
+      
+      if (error) throw error;
+      
+      setImportantDates(data?.data || []);
+      setCurrentFinancialYear(data?.financialYear || "2025-26");
+      toast.success("Important dates updated!");
+    } catch (error) {
+      console.error('Error fetching important dates:', error);
+      toast.error("Failed to fetch important dates");
+    } finally {
+      setIsLoadingDates(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Tax Estimator</h1>
-          <p className="text-gray-600">Calculate your income tax and get filing tips for Indian freelancers</p>
-        </div>
-        <Badge variant="outline" className="text-orange-600 border-orange-200">
-          FY 2024-25
-        </Badge>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Tax Estimator</h1>
+        <p className="text-gray-600">Calculate your tax liability and get insights for FY {currentFinancialYear || "2025-26"}</p>
       </div>
 
-      <Tabs defaultValue="calculator" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="calculator">Tax Calculator</TabsTrigger>
-          <TabsTrigger value="tips">Tax Tips</TabsTrigger>
-          <TabsTrigger value="dates">Important Dates</TabsTrigger>
-        </TabsList>
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Calculator */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Calculator className="w-5 h-5 mr-2" />
+              Tax Calculator
+            </CardTitle>
+            <CardDescription>
+              Calculate your estimated tax liability
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="income">Annual Gross Income (₹)</Label>
+              <Input
+                id="income"
+                type="number"
+                placeholder="e.g., 1200000"
+                value={income}
+                onChange={(e) => setIncome(e.target.value)}
+              />
+            </div>
 
-        <TabsContent value="calculator" className="space-y-6">
-          <div className="grid lg:grid-cols-2 gap-6">
-            {/* Input Form */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Calculator className="w-5 h-5 mr-2" />
-                  Income Details
-                </CardTitle>
-                <CardDescription>
-                  Enter your annual freelance income and deductions
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="annual-income">Annual Gross Income</Label>
-                  <Input
-                    id="annual-income"
-                    type="number"
-                    placeholder="Enter your total annual income"
-                    value={annualIncome}
-                    onChange={(e) => setAnnualIncome(e.target.value)}
-                  />
-                </div>
+            <div>
+              <Label htmlFor="expenses">Business Expenses (₹)</Label>
+              <Input
+                id="expenses"
+                type="number"
+                placeholder="e.g., 200000"
+                value={expenses}
+                onChange={(e) => setExpenses(e.target.value)}
+              />
+            </div>
 
-                <div>
-                  <Label htmlFor="tax-regime">Tax Regime</Label>
-                  <Select value={taxRegime} onValueChange={setTaxRegime}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">New Tax Regime</SelectItem>
-                      <SelectItem value="old">Old Tax Regime</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div>
+              <Label htmlFor="tax-regime">Tax Regime</Label>
+              <Select value={taxRegime} onValueChange={setTaxRegime}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">New Tax Regime</SelectItem>
+                  <SelectItem value="old">Old Tax Regime</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-                <div>
-                  <Label htmlFor="age">Age Category</Label>
-                  <Select value={age} onValueChange={setAge}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="below60">Below 60 years</SelectItem>
-                      <SelectItem value="60to80">60-80 years</SelectItem>
-                      <SelectItem value="above80">Above 80 years</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <Button onClick={calculateTax} className="w-full">
+              <Calculator className="w-4 h-4 mr-2" />
+              Calculate Tax
+            </Button>
+          </CardContent>
+        </Card>
 
-                {taxRegime === "old" && (
-                  <>
-                    <div>
-                      <Label htmlFor="investments">80C Investments (₹)</Label>
-                      <Input
-                        id="investments"
-                        type="number"
-                        placeholder="PF, PPF, ELSS, etc. (Max ₹1.5L)"
-                        value={investments}
-                        onChange={(e) => setInvestments(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="hra">HRA Exemption (₹)</Label>
-                      <Input
-                        id="hra"
-                        type="number"
-                        placeholder="If applicable"
-                        value={hra}
-                        onChange={(e) => setHra(e.target.value)}
-                      />
-                    </div>
-                  </>
-                )}
-
-                <Button 
-                  onClick={calculateTax}
-                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-                >
-                  <Calculator className="w-4 h-4 mr-2" />
-                  Calculate Tax
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Results */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Tax Calculation Results</CardTitle>
-                <CardDescription>
-                  Your estimated tax liability for the financial year
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {calculatedTax ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <p className="text-sm text-blue-600 font-medium">Gross Income</p>
-                        <p className="text-2xl font-bold text-blue-700">
-                          ₹{calculatedTax.grossIncome.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="bg-green-50 p-4 rounded-lg">
-                        <p className="text-sm text-green-600 font-medium">Take Home</p>
-                        <p className="text-2xl font-bold text-green-700">
-                          ₹{calculatedTax.takeHome.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span>Taxable Income:</span>
-                        <span className="font-medium">₹{calculatedTax.taxableIncome.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Income Tax:</span>
-                        <span className="font-medium">₹{calculatedTax.incomeTax.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Health & Education Cess:</span>
-                        <span className="font-medium">₹{calculatedTax.cess.toLocaleString()}</span>
-                      </div>
-                      <div className="border-t pt-2 flex justify-between font-bold">
-                        <span>Total Tax:</span>
-                        <span>₹{calculatedTax.totalTax.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-sm text-gray-600">
-                        <span>Effective Rate:</span>
-                        <span>{calculatedTax.effectiveRate.toFixed(2)}%</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-yellow-50 p-4 rounded-lg">
-                      <p className="text-sm text-yellow-700 font-medium mb-1">Quarterly Advance Tax</p>
-                      <p className="text-lg font-bold text-yellow-800">
-                        ₹{calculatedTax.quarterlyTax.toLocaleString()}
-                      </p>
-                      <p className="text-xs text-yellow-600">
-                        Pay by 15th of June, Sept, Dec, and March
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <Calculator className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p>Your tax calculation will appear here</p>
-                    <p className="text-sm">Fill in your income details and click "Calculate Tax"</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="tips" className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {taxTips.map((tip, index) => (
-              <Card key={index}>
-                <CardContent className="p-6">
-                  <div className="flex items-start space-x-3">
-                    {tip.icon}
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-2">{tip.title}</h3>
-                      <p className="text-sm text-gray-600">{tip.description}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="dates" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Important Tax Dates for FY 2024-25</CardTitle>
-              <CardDescription>
-                Mark these dates in your calendar to avoid penalties
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+        {/* Results */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <TrendingUp className="w-5 h-5 mr-2" />
+              Tax Calculation Results
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {result ? (
               <div className="space-y-4">
-                {importantDates.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-semibold text-gray-900">{item.event}</p>
-                      <p className="text-sm text-gray-600">Mark your calendar</p>
-                    </div>
-                    <Badge variant="outline" className="text-red-600 border-red-200">
-                      {item.date}
-                    </Badge>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-sm text-blue-600">Gross Income</p>
+                    <p className="text-xl font-bold text-blue-800">₹{result.grossIncome.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <p className="text-sm text-green-600">Total Expenses</p>
+                    <p className="text-xl font-bold text-green-800">₹{result.totalExpenses.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-yellow-50 p-3 rounded-lg">
+                    <p className="text-sm text-yellow-600">Taxable Income</p>
+                    <p className="text-xl font-bold text-yellow-800">₹{result.taxableIncome.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-red-50 p-3 rounded-lg">
+                    <p className="text-sm text-red-600">Total Tax</p>
+                    <p className="text-xl font-bold text-red-800">₹{Math.round(result.tax).toLocaleString()}</p>
+                  </div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600">Effective Tax Rate</p>
+                  <p className="text-2xl font-bold text-gray-800">{result.effectiveRate.toFixed(2)}%</p>
+                  <Badge variant="outline" className="mt-2">
+                    {result.regime === "new" ? "New Tax Regime" : "Old Tax Regime"}
+                  </Badge>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <Calculator className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>Enter your income details and calculate tax</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tax Tips and Important Dates */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Lightbulb className="w-5 h-5 mr-2" />
+                Tax Tips for FY {currentFinancialYear || "2025-26"}
+              </div>
+              <Button onClick={fetchTaxTips} variant="outline" size="sm" disabled={isLoadingTips}>
+                {isLoadingTips ? "Loading..." : "Refresh"}
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {taxTips.length > 0 ? (
+              <div className="space-y-3">
+                {taxTips.map((tip, index) => (
+                  <div key={index} className={`p-3 rounded-lg border-l-4 ${
+                    tip.type === 'success' ? 'bg-green-50 border-green-400' :
+                    tip.type === 'warning' ? 'bg-yellow-50 border-yellow-400' :
+                    tip.type === 'error' ? 'bg-red-50 border-red-400' :
+                    'bg-blue-50 border-blue-400'
+                  }`}>
+                    <h4 className="font-semibold text-gray-800">{tip.title}</h4>
+                    <p className="text-sm text-gray-600 mt-1">{tip.description}</p>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Lightbulb className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <p>Click "Refresh" to get current tax tips</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Calendar className="w-5 h-5 mr-2" />
+                Important Dates FY {currentFinancialYear || "2025-26"}
+              </div>
+              <Button onClick={fetchImportantDates} variant="outline" size="sm" disabled={isLoadingDates}>
+                {isLoadingDates ? "Loading..." : "Refresh"}
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {importantDates.length > 0 ? (
+              <div className="space-y-3">
+                {importantDates.map((date, index) => (
+                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span className="font-medium text-gray-800">{date.date}</span>
+                    <span className="text-sm text-gray-600">{date.event}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <p>Click "Refresh" to get important tax dates</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

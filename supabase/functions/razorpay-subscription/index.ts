@@ -71,77 +71,120 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     })
   }
 
-  // Create shorter receipt ID (max 40 chars)
-  const timestamp = Date.now().toString()
-  const userIdShort = user_id.substring(0, 8) // First 8 chars of UUID
-  const receipt = `rcpt_${userIdShort}_${timestamp}`
-  
-  console.log(`Generated receipt ID: ${receipt} (length: ${receipt.length})`)
-
-  // Create Razorpay order (not subscription) for one-time payment
   const razorpayAuth = btoa(`${Deno.env.get('RAZORPAY_KEY_ID')}:${Deno.env.get('RAZORPAY_SECRET')}`)
   
-  const orderData = {
-    amount: amount, // amount in paise
-    currency: 'INR',
-    receipt: receipt,
-    notes: {
-      user_id: user_id,
-      plan: plan
-    }
-  }
-
-  console.log('Creating Razorpay order with data:', JSON.stringify(orderData, null, 2))
-
-  const razorpayResponse = await fetch('https://api.razorpay.com/v1/orders', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${razorpayAuth}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(orderData)
-  })
-
-  const responseText = await razorpayResponse.text()
-  console.log(`Razorpay API response status: ${razorpayResponse.status}`)
-  console.log('Razorpay API response:', responseText)
-
-  if (!razorpayResponse.ok) {
-    console.error('Razorpay API error:', responseText)
-    return new Response(JSON.stringify({ 
-      error: 'Failed to create payment order',
-      details: responseText,
-      status: razorpayResponse.status
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-
-  let order
+  // Create or get customer
+  let customerId;
   try {
-    order = JSON.parse(responseText)
-  } catch (parseError) {
-    console.error('Failed to parse Razorpay response:', parseError)
-    return new Response(JSON.stringify({ 
-      error: 'Invalid response from payment gateway',
-      details: responseText
-    }), {
+    // Check if customer exists
+    const customerResponse = await fetch(`https://api.razorpay.com/v1/customers?email=${encodeURIComponent(user.email)}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${razorpayAuth}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!customerResponse.ok) {
+      throw new Error(`Customer fetch failed: ${customerResponse.status}`);
+    }
+
+    const customerData = await customerResponse.json();
+    
+    if (customerData.items && customerData.items.length > 0) {
+      customerId = customerData.items[0].id;
+      console.log('Found existing customer:', customerId);
+    } else {
+      // Create new customer
+      const newCustomerResponse = await fetch('https://api.razorpay.com/v1/customers', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${razorpayAuth}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: user.email.split('@')[0],
+          email: user.email,
+          contact: '',
+        })
+      });
+
+      if (!newCustomerResponse.ok) {
+        throw new Error(`Customer creation failed: ${newCustomerResponse.status}`);
+      }
+
+      const newCustomer = await newCustomerResponse.json();
+      customerId = newCustomer.id;
+      console.log('Created new customer:', customerId);
+    }
+  } catch (error) {
+    console.error('Customer creation/fetch error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to create customer' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 
-  console.log('Order created successfully:', order.id)
-  return new Response(JSON.stringify({
-    order_id: order.id,
-    key_id: Deno.env.get('RAZORPAY_KEY_ID'),
-    amount: amount,
-    plan: plan,
-    currency: 'INR'
-  }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  })
+  // Create simple one-time payment link instead of subscription for now
+  try {
+    const paymentLinkResponse = await fetch('https://api.razorpay.com/v1/payment_links', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${razorpayAuth}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        amount: amount,
+        currency: 'INR',
+        description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan Subscription`,
+        customer: {
+          name: user.email.split('@')[0],
+          email: user.email
+        },
+        notify: {
+          sms: false,
+          email: true
+        },
+        reminder_enable: true,
+        notes: {
+          user_id: user_id,
+          plan: plan
+        },
+        callback_url: `${req.headers.get('origin')}/settings`,
+        callback_method: 'get'
+      })
+    });
+
+    if (!paymentLinkResponse.ok) {
+      const errorText = await paymentLinkResponse.text();
+      console.error('Payment link creation failed:', errorText);
+      throw new Error(`Payment link creation failed: ${paymentLinkResponse.status}`);
+    }
+
+    const paymentLink = await paymentLinkResponse.json();
+    console.log('Payment link created successfully:', paymentLink.id);
+
+    return new Response(JSON.stringify({
+      payment_link_id: paymentLink.id,
+      short_url: paymentLink.short_url,
+      key_id: Deno.env.get('RAZORPAY_KEY_ID'),
+      amount: amount,
+      plan: plan,
+      currency: 'INR'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Payment link creation error:', error);
+    return new Response(JSON.stringify({ 
+      error: 'Failed to create payment link',
+      details: error.message
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
 }
 
 async function handleCancelSubscription(req: Request, supabase: any) {
@@ -165,7 +208,7 @@ async function handleCancelSubscription(req: Request, supabase: any) {
     .from('billing_info')
     .update({
       current_plan: 'starter',
-      subscription_status: 'inactive',
+      subscription_status: 'cancelled',
       updated_at: new Date().toISOString()
     })
     .eq('user_id', user_id)
@@ -195,6 +238,7 @@ async function handleWebhook(req: Request, supabase: any) {
   const signature = req.headers.get('x-razorpay-signature')
 
   if (!signature) {
+    console.error('Missing webhook signature')
     return new Response('Missing signature', { status: 400 })
   }
 
@@ -212,71 +256,77 @@ async function handleWebhook(req: Request, supabase: any) {
 
   const event = JSON.parse(body)
   console.log('Razorpay webhook received:', event.event)
-  console.log('Full event payload:', JSON.stringify(event, null, 2))
 
-  // Handle payment success
-  if (event.event === 'payment.captured') {
-    const payment = event.payload?.payment?.entity
+  // Handle payment link paid
+  if (event.event === 'payment_link.paid') {
+    const payment = event.payload?.payment_link?.entity
     if (payment && payment.notes?.user_id && payment.notes?.plan) {
-      console.log(`Processing payment success for user ${payment.notes.user_id}, plan: ${payment.notes.plan}`)
+      console.log(`Processing payment for user ${payment.notes.user_id}, plan: ${payment.notes.plan}`)
       
       const userId = payment.notes.user_id
       const plan = payment.notes.plan
       
       // Calculate period end (30 days from now)
       const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
       
       console.log(`Updating user ${userId} to plan ${plan} with period end: ${periodEnd}`)
       
       try {
-        // Update billing_info first
-        const { data: billingData, error: billingError } = await supabase
+        // Update billing_info
+        const { error: billingError } = await supabase
           .from('billing_info')
           .upsert({
             user_id: userId,
             current_plan: plan,
             subscription_status: 'active',
             current_period_end: periodEnd,
+            renewal_date: renewalDate,
+            usage_proposals: 0,
+            usage_followups: 0,
             updated_at: new Date().toISOString()
-          }, { 
-            onConflict: 'user_id',
-            ignoreDuplicates: false 
-          })
-          .select()
+          }, { onConflict: 'user_id' })
 
         if (billingError) {
           console.error('Billing update error:', billingError)
-          return new Response('Billing update failed', { status: 500 })
+          throw billingError
         }
         
-        console.log('Billing info updated successfully:', billingData)
-
         // Update user_profiles
-        const { data: profileData, error: profileError } = await supabase
+        const { error: profileError } = await supabase
           .from('user_profiles')
-          .upsert({
-            id: userId,
+          .update({
             subscription_tier: plan
-          }, { 
-            onConflict: 'id',
-            ignoreDuplicates: false 
           })
-          .select()
+          .eq('id', userId)
 
         if (profileError) {
           console.error('Profile update error:', profileError)
-          return new Response('Profile update failed', { status: 500 })
+          throw profileError
+        }
+
+        // Reset current month usage in usage_stats
+        const currentMonth = new Date().toISOString().substring(0, 7) + '-01'
+        const { error: usageError } = await supabase
+          .from('usage_stats')
+          .upsert({
+            user_id: userId,
+            month: currentMonth,
+            proposals_used: 0,
+            followups_used: 0,
+            tokens_used: 0
+          }, { onConflict: 'user_id,month' })
+
+        if (usageError) {
+          console.error('Usage stats reset error:', usageError)
         }
         
-        console.log('Profile updated successfully:', profileData)
-        console.log(`Successfully updated user ${userId} to plan: ${plan}`)
+        console.log(`✅ Successfully activated plan ${plan} for user ${userId}`)
         
       } catch (error) {
-        console.error('Database operation failed:', error)
+        console.error('❌ Database operation failed:', error)
         return new Response('Database error', { status: 500 })
       }
-    } else {
-      console.log('Missing payment notes or incomplete data:', payment)
     }
   }
 
