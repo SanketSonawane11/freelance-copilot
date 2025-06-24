@@ -1,164 +1,84 @@
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useUserData } from './useUserData';
-import { useSubscription } from './useSubscription';
+import { useAuth } from './useAuth';
 import { getPlanLimits } from '@/utils/planLimits';
 
-type UsageType = 'proposal' | 'followup';
+export function useUsageLimit(type: 'proposal' | 'followup') {
+  const { user } = useAuth();
 
-// Format for existing schema: YYYY-MM-01 (DATE for `month`)
-export const getCurrentMonthDate = () => {
-  const now = new Date();
-  // e.g., '2025-06-01' as DATE string
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-};
-
-export function useUsageLimit(type: UsageType) {
-  const { data: userData } = useUserData();
-  const { data: subscription } = useSubscription();
-  const userId = userData?.profile?.id;
-  const subscriptionPlan = subscription?.current_plan || 'starter';
-  const subscriptionStatus = subscription?.subscription_status || 'inactive';
-  const currentPeriodEnd = subscription?.current_period_end;
-
-  const month = getCurrentMonthDate();
-  const queryClient = useQueryClient();
-
-  // Check if subscription is valid and not expired
-  const isSubscriptionValid = () => {
-    if (subscriptionPlan === 'starter') return true; // Starter plan always valid with basic limits
-    if (subscriptionStatus !== 'active') return false;
-    if (currentPeriodEnd && new Date(currentPeriodEnd) < new Date()) {
-      console.log('Subscription expired:', currentPeriodEnd);
-      return false;
-    }
-    return true;
-  };
-
-  // Get dynamic limits based on plan - enforce correct plan limits
-  const planLimits = getPlanLimits(subscriptionPlan);
-  const limit = type === 'proposal' ? planLimits.proposals : planLimits.followups;
-
-  console.log(`Usage limit check - Plan: ${subscriptionPlan}, Type: ${type}, Limit: ${limit}, Valid: ${isSubscriptionValid()}`);
-
-  // Fetch usage_stats for this user+month; create if not exists
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ['usage_stats', userId, month],
-    enabled: !!userId,
+  return useQuery({
+    queryKey: ['usage-limit', user?.id, type],
     queryFn: async () => {
-      if (!userId) return null;
-      
-      // First check if subscription is expired and reset if needed
-      if (!isSubscriptionValid() && subscriptionPlan !== 'starter') {
-        console.log('Subscription expired, resetting to starter plan');
-        // This will be handled by a background process or webhook
-      }
-      
-      // SELECT with correct keys (month is DATE)
-      let { data, error } = await supabase
-        .from('usage_stats')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('month', month)
-        .maybeSingle();
-
-      // If not exists, create a new usage_stats row
-      if (!data && !error) {
-        const { data: inserted, error: insertError } = await supabase
-          .from('usage_stats')
-          .insert([{ user_id: userId, month, proposals_used: 0, followups_used: 0 }])
-          .select()
-          .maybeSingle();
-        if (inserted) return inserted;
-        if (insertError) throw insertError;
-      }
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 30 * 1000, // 30 seconds cache to reduce API calls
-  });
-
-  // Increment proposal/followup count if allowed
-  const mutation = useMutation({
-    mutationFn: async () => {
-      if (!userId) throw new Error('No user');
-      
-      // Check subscription validity for paid features
-      if (subscriptionPlan !== 'starter' && !isSubscriptionValid()) {
-        throw new Error('Your subscription has expired or is inactive. Please renew to continue using premium features.');
+      if (!user?.id) {
+        return { current: 0, limit: 0, canUse: false, remainingUsage: 0 };
       }
 
-      // Map to schema's fields
-      const count = type === 'proposal'
-        ? (data?.proposals_used || 0)
-        : (data?.followups_used || 0);
-      
-      console.log(`Current usage for ${type}: ${count}/${limit}`);
-      
-      if (count >= limit) {
-        const planName = subscriptionPlan === 'starter' ? 'Starter plan' : `${subscriptionPlan.charAt(0).toUpperCase() + subscriptionPlan.slice(1)} plan`;
-        throw new Error(
-          `Monthly ${type === 'proposal' ? 'proposal' : 'follow-up'} limit (${limit}) reached for your ${planName}. ${subscriptionPlan === 'starter' ? 'Please upgrade to continue.' : 'Your limit will reset on your next billing cycle.'}`
-        );
-      }
-      
-      // Update correct key
-      const updates =
-        type === 'proposal'
-          ? { proposals_used: count + 1 }
-          : { followups_used: count + 1 };
-          
-      console.log(`Incrementing ${type} usage:`, updates);
-      
-      const { error } = await supabase
-        .from('usage_stats')
-        .update(updates)
-        .eq('user_id', userId)
-        .eq('month', month);
-        
-      if (error) {
-        console.error('Usage update error:', error);
-        throw error;
-      }
-      
-      // Also update billing_info for immediate consistency
-      const billingUpdates = type === 'proposal' 
-        ? { usage_proposals: count + 1 }
-        : { usage_followups: count + 1 };
-        
-      await supabase
+      // Get user's current plan from billing_info first, fallback to user_profiles
+      const { data: billingInfo } = await supabase
         .from('billing_info')
-        .update(billingUpdates)
-        .eq('user_id', userId);
-      
-      // Invalidate to refetch updated stats
-      await queryClient.invalidateQueries({
-        queryKey: ['usage_stats', userId, month],
-      });
-      await queryClient.invalidateQueries({ queryKey: ['userData', userId] });
-      await queryClient.invalidateQueries({ queryKey: ['subscription', userId] });
+        .select('current_plan, subscription_status, usage_proposals, usage_followups')
+        .eq('user_id', user.id)
+        .single();
+
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('subscription_tier')
+        .eq('id', user.id)
+        .single();
+
+      // Determine current plan - billing_info takes precedence if subscription is active
+      let currentPlan = 'starter';
+      if (billingInfo?.subscription_status === 'active' && billingInfo?.current_plan) {
+        currentPlan = billingInfo.current_plan;
+      } else if (profile?.subscription_tier) {
+        currentPlan = profile.subscription_tier;
+      }
+
+      const planLimits = getPlanLimits(currentPlan);
+      const limit = type === 'proposal' ? planLimits.proposals : planLimits.followups;
+
+      // Get current usage from billing_info first, then usage_stats as fallback
+      let currentUsage = 0;
+      if (billingInfo) {
+        currentUsage = type === 'proposal' ? 
+          (billingInfo.usage_proposals || 0) : 
+          (billingInfo.usage_followups || 0);
+      } else {
+        // Fallback to usage_stats for current month
+        const currentMonth = new Date().toISOString().substring(0, 7) + '-01';
+        const { data: usageStats } = await supabase
+          .from('usage_stats')
+          .select('proposals_used, followups_used')
+          .eq('user_id', user.id)
+          .eq('month', currentMonth)
+          .single();
+
+        if (usageStats) {
+          currentUsage = type === 'proposal' ? 
+            (usageStats.proposals_used || 0) : 
+            (usageStats.followups_used || 0);
+        }
+      }
+
+      const canUse = currentUsage < limit;
+      const remainingUsage = Math.max(0, limit - currentUsage);
+
+      // Only log for debugging, not on every check
+      if (Math.random() < 0.1) { // Only log 10% of the time to reduce noise
+        console.log(`Usage limit check - Plan: ${currentPlan}, Type: ${type}, Current: ${currentUsage}, Limit: ${limit}, Can use: ${canUse}`);
+      }
+
+      return {
+        current: currentUsage,
+        limit,
+        canUse,
+        remainingUsage,
+        plan: currentPlan
+      };
     },
+    enabled: !!user?.id,
+    refetchInterval: 30000, // Reduced from 5 seconds to 30 seconds
+    staleTime: 20000, // Cache for 20 seconds
   });
-
-  // Use correct fields
-  const current = type === 'proposal'
-    ? data?.proposals_used || 0
-    : data?.followups_used || 0;
-
-  const canIncrement = current < limit && (subscriptionPlan === 'starter' || isSubscriptionValid());
-
-  return {
-    limit,
-    current,
-    isLoading,
-    canIncrement,
-    increment: mutation.mutateAsync,
-    refetch,
-    error: mutation.error,
-    subscriptionValid: isSubscriptionValid(),
-    subscriptionPlan,
-    subscriptionStatus,
-    remainingUsage: Math.max(0, limit - current)
-  };
 }

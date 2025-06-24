@@ -1,14 +1,7 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
-
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
 
 export function useRazorpaySubscription() {
   const { user } = useAuth();
@@ -18,28 +11,28 @@ export function useRazorpaySubscription() {
     mutationFn: async (plan: 'basic' | 'pro') => {
       if (!user?.id) throw new Error('No user');
 
-      console.log('Creating Razorpay subscription for plan:', plan);
+      console.log('Creating payment link for plan:', plan);
       
       const { data, error } = await supabase.functions.invoke('razorpay-subscription/create-subscription', {
         body: { user_id: user.id, plan }
       });
 
       if (error) {
-        console.error('Razorpay subscription creation error:', error);
+        console.error('Payment link creation error:', error);
         throw error;
       }
       
-      console.log('Razorpay subscription created:', data);
+      console.log('Payment link created:', data);
       return data;
     },
     onSuccess: (data, plan) => {
-      console.log('Razorpay subscription success, opening checkout for plan:', plan);
+      console.log('Payment link success, opening checkout for plan:', plan);
       
       if (data.short_url) {
-        // Open subscription link in new tab
-        console.log('Opening subscription URL:', data.short_url);
+        // Open payment link in new tab
+        console.log('Opening payment URL:', data.short_url);
         window.open(data.short_url, '_blank');
-        toast.success('Subscription link opened! Complete payment to activate your plan.');
+        toast.success('Payment link opened! Complete payment to activate your plan.');
         
         // Set up polling to check subscription status
         const checkStatus = async () => {
@@ -56,6 +49,7 @@ export function useRazorpaySubscription() {
               queryClient.invalidateQueries({ queryKey: ['settings', user?.id] });
               queryClient.invalidateQueries({ queryKey: ['userData', user?.id] });
               queryClient.invalidateQueries({ queryKey: ['usage_stats'] });
+              queryClient.invalidateQueries({ queryKey: ['usage-limit'] });
               
               toast.success(`${subscription.current_plan.charAt(0).toUpperCase() + subscription.current_plan.slice(1)} plan activated successfully!`);
               return true;
@@ -67,9 +61,9 @@ export function useRazorpaySubscription() {
           }
         };
         
-        // Poll every 5 seconds for 2 minutes
+        // Poll every 10 seconds for 3 minutes (more reasonable)
         let attempts = 0;
-        const maxAttempts = 24; // 2 minutes
+        const maxAttempts = 18; // 3 minutes
         const pollInterval = setInterval(async () => {
           attempts++;
           const activated = await checkStatus();
@@ -80,15 +74,15 @@ export function useRazorpaySubscription() {
               toast.info('Payment status check timed out. Please refresh the page if your payment was successful.');
             }
           }
-        }, 5000);
+        }, 10000);
         
       } else {
-        toast.error('Failed to create subscription link');
+        toast.error('Failed to create payment link');
       }
     },
     onError: (error) => {
-      console.error('Subscription creation error:', error);
-      toast.error(error?.message || 'Failed to create subscription');
+      console.error('Payment link creation error:', error);
+      toast.error(error?.message || 'Failed to create payment link');
     },
   });
 

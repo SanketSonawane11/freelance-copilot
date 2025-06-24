@@ -78,12 +78,15 @@ export const useSettings = () => {
         currentPlan = profile.subscription_tier;
       }
       
-      console.log('Plan determination:', {
-        billingPlan: billing?.current_plan,
-        billingStatus: billing?.subscription_status,
-        profileTier: profile?.subscription_tier,
-        finalPlan: currentPlan
-      });
+      // Only log plan determination occasionally to reduce noise
+      if (Math.random() < 0.1) {
+        console.log('Plan determination:', {
+          billingPlan: billing?.current_plan,
+          billingStatus: billing?.subscription_status,
+          profileTier: profile?.subscription_tier,
+          finalPlan: currentPlan
+        });
+      }
 
       // If there's a mismatch between billing and profile, sync them
       if (billing?.current_plan !== profile?.subscription_tier) {
@@ -135,7 +138,8 @@ export const useSettings = () => {
       };
     },
     enabled: !!user?.id,
-    refetchInterval: 5000, // Refetch every 5 seconds to catch payment updates
+    refetchInterval: 60000, // Reduced from 5 seconds to 60 seconds
+    staleTime: 30000, // Cache for 30 seconds
   });
 
   const updateSettingsMutation = useMutation({
