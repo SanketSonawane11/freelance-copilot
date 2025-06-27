@@ -29,10 +29,30 @@ export function useRazorpaySubscription() {
       console.log('Payment link success, opening checkout for plan:', plan);
       
       if (data.short_url) {
-        // Open payment link in new tab
-        console.log('Opening payment URL:', data.short_url);
-        window.open(data.short_url, '_blank');
-        toast.success('Payment link opened! Complete payment to activate your plan.');
+        // Open Razorpay modal instead of new tab
+        const options = {
+          key: data.key_id || 'RAZORPAY_KEY_ID', // fallback if not provided
+          amount: data.amount, // in paise
+          currency: data.currency || 'INR',
+          name: 'Freelancer Copilot',
+          description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan Subscription`,
+          order_id: undefined, // Not using order, using payment link
+          handler: function (response) {
+            toast.success('Payment successful! Activating your plan...');
+            // Polling will handle activation
+          },
+          modal: {
+            ondismiss: function () {
+              toast.info('Payment popup closed. You can try again from Billing.');
+            },
+          },
+          theme: { color: '#6366f1' },
+          // Use payment_link as method
+          callback_url: data.short_url,
+        };
+        // @ts-ignore
+        const rzp = new window.Razorpay(options);
+        rzp.open();
         
         // Set up polling to check subscription status
         const checkStatus = async () => {
