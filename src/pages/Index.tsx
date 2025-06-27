@@ -207,11 +207,11 @@ const Index = () => {
               <CardContent className="space-y-3">
                 <div className="flex items-center text-slate-700">
                   <Shield className="w-4 h-4 text-emerald-500 mr-3" />
-                  <span>10 AI proposals/month</span>
+                  <span>50 AI proposals/month</span>
                 </div>
                 <div className="flex items-center text-slate-700">
                   <Shield className="w-4 h-4 text-emerald-500 mr-3" />
-                  <span>10 neural follow-ups/month</span>
+                  <span>50 neural follow-ups/month</span>
                 </div>
                 <div className="flex items-center text-slate-700">
                   <Shield className="w-4 h-4 text-emerald-500 mr-3" />
