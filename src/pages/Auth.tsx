@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { createInitialSubscription } from "@/utils/createInitialSubscription";
 import { useNavigate } from "react-router-dom";
 import { useRazorpaySubscription } from "@/hooks/useRazorpaySubscription";
+import { getPlanLimits, getPlanPrice } from "@/utils/planLimits";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -223,24 +224,24 @@ const Auth = () => {
                   <PlanCard
                     plan="starter"
                     title="Starter"
-                    price="Free"
+                    price={`₹${getPlanPrice('starter').amount}`}
                     features={[
-                      "10 AI proposals/month",
-                      "10 smart follow-ups/month",
-                      "Basic invoice generation (3 Invoices/month)",
-                      "Upto 2 clients",
+                      `${getPlanLimits('starter').displayProposals} AI proposals/month`,
+                      `${getPlanLimits('starter').displayFollowups} smart follow-ups/month`,
+                      `Basic invoice generation (${getPlanLimits('starter').displayInvoices} Invoices/month)`,
+                      `Upto ${getPlanLimits('starter').displayClients} clients`,
                     ]}
                   />
                   <PlanCard
                     plan="basic"
                     title="Basic"
-                    price="₹149"
+                    price={`₹${getPlanPrice('basic').amount}`}
                     features={[
-                      "50 AI proposals/month",
-                      "50 smart follow-ups/month",
-                      "Added invoice generation limit (30 Invoices/month)",
+                      `${getPlanLimits('basic').displayProposals} AI proposals/month`,
+                      `${getPlanLimits('basic').displayFollowups} smart follow-ups/month`,
+                      `Added invoice generation limit (${getPlanLimits('basic').displayInvoices} Invoices/month)`,
                       "Tax estimation tools",
-                      "Upto 10 Clients",
+                      `Upto ${getPlanLimits('basic').displayClients} Clients`,
                       "Priority support",
                     ]}
                     popular={true}
@@ -248,13 +249,13 @@ const Auth = () => {
                   <PlanCard
                     plan="pro"
                     title="Pro"
-                    price="₹349"
+                    price={`₹${getPlanPrice('pro').amount}`}
                     features={[
-                      "100 AI proposals/month",
-                      "100 smart follow-ups/month",
+                      `${getPlanLimits('pro').displayProposals} AI proposals/month`,
+                      `${getPlanLimits('pro').displayFollowups} smart follow-ups/month`,
                       "All premium features",
-                      "Maximum invoice generation limit (50 invoices/month)",
-                      "Upto 30 Clients",
+                      `Maximum invoice generation limit (${getPlanLimits('pro').displayInvoices} invoices/month)`,
+                      `Upto ${getPlanLimits('pro').displayClients} Clients`,
                       "Tax estimation tools",
                       "Priority support",
                     ]}
