@@ -11,85 +11,104 @@ export function useRazorpaySubscription() {
     mutationFn: async (plan: 'basic' | 'pro') => {
       if (!user?.id) throw new Error('No user');
 
-      console.log('Creating payment link for plan:', plan);
+      console.log('Creating order for plan:', plan);
       
       const { data, error } = await supabase.functions.invoke('razorpay-subscription/create-subscription', {
         body: { user_id: user.id, plan }
       });
 
       if (error) {
-        console.error('Payment link creation error:', error);
+        console.error('Order creation error:', error);
         throw error;
       }
       
-      console.log('Payment link created:', data);
+      console.log('Order created:', data);
       return data;
     },
     onSuccess: (data, plan) => {
-      console.log('Payment link success, opening checkout for plan:', plan);
+      console.log('Order success, opening Razorpay checkout for plan:', plan);
       
-      if (data.short_url) {
-        // Open payment link directly instead of Razorpay checkout
-        if (data.short_url) {
-          // Open payment link in new tab
-          window.open(data.short_url, '_blank');
-          toast.success('Payment link opened! Complete payment to activate your plan.');
+      if (data.order_id && data.key_id) {
+        // Load Razorpay script if not already loaded
+        if (!window.Razorpay) {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.onload = () => openRazorpayCheckout(data, plan);
+          document.body.appendChild(script);
         } else {
-          toast.error('No payment URL received');
-          return;
+          openRazorpayCheckout(data, plan);
         }
-        
-        // Set up polling to check subscription status
-        const checkStatus = async () => {
-          try {
-            const { data: subscription } = await supabase
-              .from('billing_info')
-              .select('subscription_status, current_plan')
-              .eq('user_id', user?.id)
-              .single();
-              
-            if (subscription?.subscription_status === 'active') {
-              // Refresh all relevant data
-              queryClient.invalidateQueries({ queryKey: ['subscription', user?.id] });
-              queryClient.invalidateQueries({ queryKey: ['settings', user?.id] });
-              queryClient.invalidateQueries({ queryKey: ['userData', user?.id] });
-              queryClient.invalidateQueries({ queryKey: ['usage_stats'] });
-              queryClient.invalidateQueries({ queryKey: ['usage-limit'] });
-              
-              toast.success(`${subscription.current_plan.charAt(0).toUpperCase() + subscription.current_plan.slice(1)} plan activated successfully!`);
-              return true;
-            }
-            return false;
-          } catch (error) {
-            console.error('Status check error:', error);
-            return false;
-          }
-        };
-        
-        // Poll every 10 seconds for 3 minutes (more reasonable)
-        let attempts = 0;
-        const maxAttempts = 18; // 3 minutes
-        const pollInterval = setInterval(async () => {
-          attempts++;
-          const activated = await checkStatus();
-          
-          if (activated || attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            if (!activated && attempts >= maxAttempts) {
-              toast.info('Payment status check timed out. Please refresh the page if your payment was successful.');
-            }
-          }
-        }, 10000);
-        
       } else {
-        toast.error('Failed to create payment link');
+        toast.error('Failed to create order');
       }
     },
     onError: (error) => {
-      console.error('Payment link creation error:', error);
-      toast.error(error?.message || 'Failed to create payment link');
+      console.error('Order creation error:', error);
+      toast.error(error?.message || 'Failed to create order');
     },
   });
+
+  const openRazorpayCheckout = (orderData: any, plan: string) => {
+    const options = {
+      key: orderData.key_id,
+      amount: orderData.amount,
+      currency: orderData.currency,
+      name: 'Freelancer Copilot',
+      description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan Subscription`,
+      order_id: orderData.order_id,
+      prefill: {
+        name: orderData.customer.name,
+        email: orderData.customer.email
+      },
+      theme: {
+        color: '#3b82f6'
+      },
+      handler: async (response: any) => {
+        console.log('Payment successful:', response);
+        
+        try {
+          // Verify payment on server
+          const { data: verifyData, error: verifyError } = await supabase.functions.invoke('razorpay-subscription/verify-payment', {
+            body: {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              user_id: user?.id,
+              plan: plan
+            }
+          });
+
+          if (verifyError) {
+            console.error('Payment verification failed:', verifyError);
+            toast.error('Payment verification failed');
+            return;
+          }
+
+          // Refresh all relevant data
+          queryClient.invalidateQueries({ queryKey: ['subscription', user?.id] });
+          queryClient.invalidateQueries({ queryKey: ['settings', user?.id] });
+          queryClient.invalidateQueries({ queryKey: ['userData', user?.id] });
+          queryClient.invalidateQueries({ queryKey: ['usage_stats'] });
+          queryClient.invalidateQueries({ queryKey: ['usage-limit'] });
+          
+          toast.success(`${plan.charAt(0).toUpperCase() + plan.slice(1)} plan activated successfully!`);
+          
+        } catch (error) {
+          console.error('Payment verification error:', error);
+          toast.error('Payment verification failed');
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          console.log('Payment modal dismissed');
+          toast.info('Payment cancelled');
+        }
+      }
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  };
 
   const cancelSubscriptionMutation = useMutation({
     mutationFn: async () => {

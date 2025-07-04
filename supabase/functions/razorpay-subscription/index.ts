@@ -28,6 +28,8 @@ serve(async (req) => {
       return handleCreateSubscription(req, supabase)
     } else if (path.endsWith('/cancel-subscription')) {
       return handleCancelSubscription(req, supabase)
+    } else if (path.endsWith('/verify-payment')) {
+      return handleVerifyPayment(req, supabase)
     }
 
     return new Response('Not found', { status: 404, headers: corsHeaders })
@@ -125,9 +127,9 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     })
   }
 
-  // Create simple one-time payment link instead of subscription for now
+  // Create Razorpay order for checkout popup
   try {
-    const paymentLinkResponse = await fetch('https://api.razorpay.com/v1/payment_links', {
+    const orderResponse = await fetch('https://api.razorpay.com/v1/orders', {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${razorpayAuth}`,
@@ -136,49 +138,41 @@ async function handleCreateSubscription(req: Request, supabase: any) {
       body: JSON.stringify({
         amount: amount,
         currency: 'INR',
-        description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan Subscription`,
-        customer: {
-          name: user.email.split('@')[0],
-          email: user.email
-        },
-        notify: {
-          sms: false,
-          email: true
-        },
-        reminder_enable: true,
+        receipt: `receipt_${user_id}_${Date.now()}`,
         notes: {
           user_id: user_id,
           plan: plan
-        },
-        callback_url: `${req.headers.get('origin')}/settings`,
-        callback_method: 'get'
+        }
       })
     });
 
-    if (!paymentLinkResponse.ok) {
-      const errorText = await paymentLinkResponse.text();
-      console.error('Payment link creation failed:', errorText);
-      throw new Error(`Payment link creation failed: ${paymentLinkResponse.status}`);
+    if (!orderResponse.ok) {
+      const errorText = await orderResponse.text();
+      console.error('Order creation failed:', errorText);
+      throw new Error(`Order creation failed: ${orderResponse.status}`);
     }
 
-    const paymentLink = await paymentLinkResponse.json();
-    console.log('Payment link created successfully:', paymentLink.id);
+    const order = await orderResponse.json();
+    console.log('Order created successfully:', order.id);
 
     return new Response(JSON.stringify({
-      payment_link_id: paymentLink.id,
-      short_url: paymentLink.short_url,
+      order_id: order.id,
       key_id: Deno.env.get('RAZORPAY_KEY_ID'),
       amount: amount,
       plan: plan,
-      currency: 'INR'
+      currency: 'INR',
+      customer: {
+        name: user.email.split('@')[0],
+        email: user.email
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('Payment link creation error:', error);
+    console.error('Order creation error:', error);
     return new Response(JSON.stringify({ 
-      error: 'Failed to create payment link',
+      error: 'Failed to create order',
       details: error.message
     }), {
       status: 500,
@@ -257,9 +251,9 @@ async function handleWebhook(req: Request, supabase: any) {
   const event = JSON.parse(body)
   console.log('Razorpay webhook received:', event.event)
 
-  // Handle payment link paid
-  if (event.event === 'payment_link.paid') {
-    const payment = event.payload?.payment_link?.entity
+  // Handle payment captured
+  if (event.event === 'payment.captured') {
+    const payment = event.payload?.payment?.entity
     if (payment && payment.notes?.user_id && payment.notes?.plan) {
       console.log(`Processing payment for user ${payment.notes.user_id}, plan: ${payment.notes.plan}`)
       
@@ -331,4 +325,106 @@ async function handleWebhook(req: Request, supabase: any) {
   }
 
   return new Response('Webhook processed', { status: 200 })
+}
+
+async function handleVerifyPayment(req: Request, supabase: any) {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, user_id, plan } = await req.json()
+  
+  console.log(`Verifying payment for user ${user_id}, plan: ${plan}`)
+
+  // Get user's auth header for verification
+  const authHeader = req.headers.get('Authorization')
+  const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader?.replace('Bearer ', ''))
+  
+  if (authError || !user || user.id !== user_id) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+
+  // Verify payment signature
+  const crypto = await import('node:crypto')
+  const body = razorpay_order_id + "|" + razorpay_payment_id
+  const expectedSignature = crypto
+    .createHmac('sha256', Deno.env.get('RAZORPAY_SECRET') ?? '')
+    .update(body)
+    .digest('hex')
+
+  if (expectedSignature !== razorpay_signature) {
+    console.error('Invalid payment signature')
+    return new Response(JSON.stringify({ error: 'Invalid payment signature' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+
+  // Calculate period end (30 days from now)
+  const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  
+  console.log(`Payment verified, updating user ${user_id} to plan ${plan} with period end: ${periodEnd}`)
+  
+  try {
+    // Update billing_info
+    const { error: billingError } = await supabase
+      .from('billing_info')
+      .upsert({
+        user_id: user_id,
+        current_plan: plan,
+        subscription_status: 'active',
+        current_period_end: periodEnd,
+        renewal_date: renewalDate,
+        usage_proposals: 0,
+        usage_followups: 0,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' })
+
+    if (billingError) {
+      console.error('Billing update error:', billingError)
+      throw billingError
+    }
+    
+    // Update user_profiles
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .update({
+        subscription_tier: plan
+      })
+      .eq('id', user_id)
+
+    if (profileError) {
+      console.error('Profile update error:', profileError)
+      throw profileError
+    }
+
+    // Reset current month usage in usage_stats
+    const currentMonth = new Date().toISOString().substring(0, 7) + '-01'
+    const { error: usageError } = await supabase
+      .from('usage_stats')
+      .upsert({
+        user_id: user_id,
+        month: currentMonth,
+        proposals_used: 0,
+        followups_used: 0,
+        tokens_used: 0
+      }, { onConflict: 'user_id,month' })
+
+    if (usageError) {
+      console.error('Usage stats reset error:', usageError)
+    }
+    
+    console.log(`✅ Successfully activated plan ${plan} for user ${user_id}`)
+    
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+    
+  } catch (error) {
+    console.error('❌ Database operation failed:', error)
+    return new Response(JSON.stringify({ error: 'Database update failed' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
 }
