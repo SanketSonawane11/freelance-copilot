@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import { motion, useMotionValue, useTransform, useAnimation } from "framer-motion";
 import { useEffect, useRef } from "react";
+import { getPlanLimits, getPlanPrice } from "@/utils/planLimits";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -200,22 +201,26 @@ const Index = () => {
                 </div>
                 <CardTitle className="text-xl text-slate-800">Starter Neural</CardTitle>
                 <div className="text-3xl font-bold text-slate-900 mt-2">
-                  ₹149<span className="text-lg font-normal text-slate-600">/month</span>
+                  ₹{getPlanPrice('basic').amount}<span className="text-lg font-normal text-slate-600">/month</span>
                 </div>
                 <CardDescription className="text-slate-600">Perfect for emerging minds</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center text-slate-700">
                   <Shield className="w-4 h-4 text-emerald-500 mr-3" />
-                  <span>50 AI proposals/month</span>
+                  <span>{getPlanLimits('basic').displayProposals} AI proposals/month</span>
                 </div>
                 <div className="flex items-center text-slate-700">
                   <Shield className="w-4 h-4 text-emerald-500 mr-3" />
-                  <span>50 neural follow-ups/month</span>
+                  <span>{getPlanLimits('basic').displayFollowups} neural follow-ups/month</span>
                 </div>
                 <div className="flex items-center text-slate-700">
                   <Shield className="w-4 h-4 text-emerald-500 mr-3" />
-                  <span>Unlimited smart invoicing</span>
+                  <span>{getPlanLimits('basic').displayInvoices} smart invoicing</span>
+                </div>
+                <div className="flex items-center text-slate-700">
+                  <Shield className="w-4 h-4 text-emerald-500 mr-3" />
+                  <span>{getPlanLimits('basic').displayClients} clients</span>
                 </div>
                 <div className="flex items-center text-slate-700">
                   <Shield className="w-4 h-4 text-emerald-500 mr-3" />
@@ -240,22 +245,26 @@ const Index = () => {
                 </div>
                 <CardTitle className="text-xl text-slate-800">Pro Neural</CardTitle>
                 <div className="text-3xl font-bold text-slate-900 mt-2">
-                  ₹399<span className="text-lg font-normal text-slate-600">/month</span>
+                  ₹{getPlanPrice('pro').amount}<span className="text-lg font-normal text-slate-600">/month</span>
                 </div>
                 <CardDescription className="text-slate-600">For advanced neural networks</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center text-slate-700">
                   <Shield className="w-4 h-4 text-emerald-500 mr-3" />
-                  <span>100 AI proposals/month</span>
+                  <span>{getPlanLimits('pro').displayProposals} AI proposals/month</span>
+                </div>
+                <div className="flex items-start text-left text-slate-700">
+                  <Shield className="w-4 h-4 text-emerald-500 mr-3" />
+                  <span>{getPlanLimits('pro').displayFollowups} neural follow-ups/month</span>
                 </div>
                 <div className="flex items-center text-slate-700">
                   <Shield className="w-4 h-4 text-emerald-500 mr-3" />
-                  <span>100 neural follow-ups/month</span>
+                  <span>{getPlanLimits('pro').displayInvoices} smart invoicing</span>
                 </div>
                 <div className="flex items-center text-slate-700">
                   <Shield className="w-4 h-4 text-emerald-500 mr-3" />
-                  <span>Unlimited smart invoicing</span>
+                  <span>{getPlanLimits('pro').displayClients} clients</span>
                 </div>
                 <div className="flex items-center text-slate-700">
                   <Shield className="w-4 h-4 text-emerald-500 mr-3" />
