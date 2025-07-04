@@ -149,7 +149,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({ data }) => {
             <div className="space-y-3">
               <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-100">
                 <h5 className="font-semibold text-blue-800 mb-2">Basic Plan - {getPlanPrice('basic').display}/month</h5>
-                <p className="text-blue-700 mb-3">{getPlanLimits('basic').proposals} AI proposals, {getPlanLimits('basic').followups} follow-ups, priority support</p>
+                <p className="text-blue-700 mb-3">{getPlanLimits('basic').displayProposals} AI proposals, {getPlanLimits('basic').displayFollowups} follow-ups, priority support</p>
                 <Button 
                   onClick={() => handleUpgrade('basic')}
                   disabled={isCreating}
@@ -162,7 +162,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({ data }) => {
               
               <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-100">
                 <h5 className="font-semibold text-purple-800 mb-2">Pro Plan - {getPlanPrice('pro').display}/month</h5>
-                <p className="text-purple-700 mb-3">{getPlanLimits('pro').proposals} AI proposals, {getPlanLimits('pro').followups} follow-ups monthly</p>
+                <p className="text-purple-700 mb-3">{getPlanLimits('pro').displayProposals} AI proposals, {getPlanLimits('pro').displayFollowups} follow-ups monthly, priority support</p>
                 <Button 
                   onClick={() => handleUpgrade('pro')}
                   disabled={isCreating}
@@ -179,7 +179,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({ data }) => {
             <div className="space-y-3">
               <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-100">
                 <h5 className="font-semibold text-purple-800 mb-2">Upgrade to Pro - {getPlanPrice('pro').display}/month</h5>
-                <p className="text-purple-700 mb-3">Double your limits with {getPlanLimits('pro').proposals} proposals & {getPlanLimits('pro').followups} follow-ups</p>
+                <p className="text-purple-700 mb-3">Double your limits with {getPlanLimits('pro').displayProposals} proposals & {getPlanLimits('pro').displayFollowups} follow-up,  priority support</p>
                 <Button 
                   onClick={() => handleUpgrade('pro')}
                   disabled={isCreating}
@@ -208,7 +208,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({ data }) => {
             <div className="space-y-3">
               <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-100">
                 <h5 className="font-semibold text-green-800 mb-2">You're on Pro! 🎉</h5>
-                <p className="text-green-700">Enjoying the full power of Freelancer Copilot with {getPlanLimits('pro').proposals} monthly proposals</p>
+                <p className="text-green-700">Enjoying the full power of Freelancer Copilot with {getPlanLimits('pro').displayProposals} monthly proposals</p>
               </div>
               
               {isActive && !isExpired && (
