@@ -7,11 +7,11 @@ import { getPlanLimits } from '@/utils/planLimits';
 export function useUsageLimit(type: 'proposal' | 'followup') {
   const { user } = useAuth();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['usage-limit', user?.id, type],
     queryFn: async () => {
       if (!user?.id) {
-        return { current: 0, limit: 0, canUse: false, remainingUsage: 0 };
+        return { current: 0, limit: 0, canUse: false, remainingUsage: 0, plan: 'starter' };
       }
 
       // Get user's current plan from billing_info first, fallback to user_profiles
@@ -81,4 +81,31 @@ export function useUsageLimit(type: 'proposal' | 'followup') {
     refetchInterval: 30000, // Reduced from 5 seconds to 30 seconds
     staleTime: 20000, // Cache for 20 seconds
   });
+
+  return {
+    ...query,
+    current: query.data?.current || 0,
+    limit: query.data?.limit || 0,
+    canUse: query.data?.canUse || false,
+    remainingUsage: query.data?.remainingUsage || 0,
+    plan: query.data?.plan || 'starter',
+    canIncrement: query.data?.canUse || false,
+    increment: async () => {
+      if (!user?.id) throw new Error('No user');
+      
+      // Increment usage in billing_info
+      const { error } = await supabase
+        .from('billing_info')
+        .update({
+          [`usage_${type === 'proposal' ? 'proposals' : 'followups'}`]: (query.data?.current || 0) + 1,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+        
+      if (error) throw new Error(`Failed to update usage: ${error.message}`);
+      
+      // Refetch to get updated data
+      query.refetch();
+    }
+  };
 }
