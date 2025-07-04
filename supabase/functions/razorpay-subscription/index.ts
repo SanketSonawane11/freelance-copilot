@@ -138,7 +138,7 @@ async function handleCreateSubscription(req: Request, supabase: any) {
       body: JSON.stringify({
         amount: amount,
         currency: 'INR',
-        receipt: `receipt_${user_id}_${Date.now()}`,
+        receipt: `r_${user_id.slice(0, 8)}_${Date.now()}`,
         notes: {
           user_id: user_id,
           plan: plan
