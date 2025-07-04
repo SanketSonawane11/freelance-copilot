@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -35,34 +34,35 @@ export function useUsageLimit(type: 'proposal' | 'followup') {
         currentPlan = profile.subscription_tier;
       }
 
+      // Always use a valid plan for limits
+      const validPlans = ['starter', 'basic', 'pro'];
+      if (!validPlans.includes(currentPlan)) {
+        currentPlan = 'starter';
+      }
       const planLimits = getPlanLimits(currentPlan);
-      const limit = type === 'proposal' ? planLimits.proposals : planLimits.followups;
+      const limit = type === 'proposal' ? planLimits?.proposals ?? 0 : planLimits?.followups ?? 0;
 
-      // Get current usage from billing_info first, then usage_stats as fallback
+      // Always get current usage from usage_stats for current month
       let currentUsage = 0;
-      if (billingInfo) {
-        currentUsage = type === 'proposal' ? 
-          (billingInfo.usage_proposals || 0) : 
-          (billingInfo.usage_followups || 0);
-      } else {
-        // Fallback to usage_stats for current month
-        const currentMonth = new Date().toISOString().substring(0, 7) + '-01';
-        const { data: usageStats } = await supabase
-          .from('usage_stats')
-          .select('proposals_used, followups_used')
-          .eq('user_id', user.id)
-          .eq('month', currentMonth)
-          .single();
+      const currentMonth = new Date().toISOString().substring(0, 7) + '-01';
+      const { data: usageStats } = await supabase
+        .from('usage_stats')
+        .select('proposals_used, followups_used')
+        .eq('user_id', user.id)
+        .eq('month', currentMonth)
+        .single();
 
-        if (usageStats) {
-          currentUsage = type === 'proposal' ? 
-            (usageStats.proposals_used || 0) : 
-            (usageStats.followups_used || 0);
-        }
+      if (usageStats) {
+        currentUsage = type === 'proposal' ? 
+          (usageStats.proposals_used || 0) : 
+          (usageStats.followups_used || 0);
       }
 
       const canUse = currentUsage < limit;
       const remainingUsage = Math.max(0, limit - currentUsage);
+
+      // Debug log
+      console.log('useUsageLimit debug:', { currentPlan, planLimits, limit, usageStats });
 
       // Only log for debugging, not on every check
       if (Math.random() < 0.1) { // Only log 10% of the time to reduce noise
@@ -70,9 +70,10 @@ export function useUsageLimit(type: 'proposal' | 'followup') {
       }
 
       return {
-        current: currentUsage,
-        limit,
+        current: currentUsage ?? 0,
+        limit: limit ?? 0,
         canUse,
+        canIncrement: canUse,
         remainingUsage,
         plan: currentPlan
       };

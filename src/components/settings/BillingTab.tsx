@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -105,10 +104,10 @@ export const BillingTab: React.FC<BillingTabProps> = ({ data }) => {
             <p className={`text-2xl font-bold ${
               proposalUsage.current >= proposalUsage.limit ? 'text-red-600' : 'text-blue-600'
             }`}>
-              {proposalUsage.current}
+              {proposalUsage.current ?? 0}
             </p>
             <p className="text-sm text-slate-500">
-              / {proposalUsage.limit} this month
+              / {proposalUsage.limit ?? 0} this month
             </p>
             {proposalUsage.remainingUsage === 0 && (
               <p className="text-xs text-red-600 mt-1">Limit reached!</p>
@@ -121,10 +120,10 @@ export const BillingTab: React.FC<BillingTabProps> = ({ data }) => {
             <p className={`text-2xl font-bold ${
               followupUsage.current >= followupUsage.limit ? 'text-red-600' : 'text-emerald-600'
             }`}>
-              {followupUsage.current}
+              {followupUsage.current ?? 0}
             </p>
             <p className="text-sm text-slate-500">
-              / {followupUsage.limit} this month
+              / {followupUsage.limit ?? 0} this month
             </p>
             {followupUsage.remainingUsage === 0 && (
               <p className="text-xs text-red-600 mt-1">Limit reached!</p>

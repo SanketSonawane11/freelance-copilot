@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -127,7 +126,7 @@ export const ProposalWriter = () => {
         <Badge variant="outline" className="text-blue-600 border-blue-200">
           {usageLimit.isLoading
             ? "Loading..."
-            : `${usageLimit.current}/${usageLimit.limit} proposals used this month`}
+            : `${usageLimit.current ?? 0}/${usageLimit.limit ?? 0} proposals used this month`}
         </Badge>
       </div>
 

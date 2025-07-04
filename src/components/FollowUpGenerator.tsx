@@ -150,7 +150,7 @@ export const FollowUpGenerator = () => {
         <Badge variant="outline" className="text-blue-600 border-blue-200">
           {usageLimit.isLoading
             ? "Loading..."
-            : `${usageLimit.current}/${usageLimit.limit} follow-ups used this month`}
+            : `${usageLimit.current ?? 0}/${usageLimit.limit ?? 0} follow-ups used this month`}
         </Badge>
       </div>
 
