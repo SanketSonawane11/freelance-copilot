@@ -269,12 +269,9 @@ export const FollowUpGenerator = () => {
             {generatedFollowUp ? (
               <div className="space-y-4">
                 <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
-                  {/* <pre className="whitespace-pre-wrap text-sm text-gray-800 font-sans"> */}
-                  <div
-                    className="prose max-w-none text-gray-800"
-                    dangerouslySetInnerHTML={{ __html: generatedFollowUp }}
-                  />
-                  {/* </pre> */}
+                  <div className="prose max-w-none text-gray-800">
+                    <ReactMarkdown>{generatedFollowUp}</ReactMarkdown>
+                  </div>
                 </div>
                 <div className="flex space-x-2">
                   <Button
