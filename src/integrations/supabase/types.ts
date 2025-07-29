@@ -196,6 +196,92 @@ export type Database = {
         }
         Relationships: []
       }
+      project_summaries: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          id: string
+          project_id: string
+          summary_text: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          id?: string
+          project_id: string
+          summary_text: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          id?: string
+          project_id?: string
+          summary_text?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_summaries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_summaries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposals: {
         Row: {
           ai_response: string | null
@@ -400,11 +486,66 @@ export type Database = {
         }
         Relationships: []
       }
+      vector_chunks_metadata: {
+        Row: {
+          chunk_text: string
+          client_id: string
+          created_at: string | null
+          embedding: string | null
+          id: string
+          project_id: string
+          source_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          chunk_text: string
+          client_id: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          project_id: string
+          source_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          chunk_text?: string
+          client_id?: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          project_id?: string
+          source_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vector_chunks_metadata_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vector_chunks_metadata_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      binary_quantize: {
+        Args: { "": string } | { "": unknown }
+        Returns: unknown
+      }
       delete_user_account: {
         Args: { user_uuid: string }
         Returns: boolean
@@ -424,6 +565,94 @@ export type Database = {
           tokens_used: number | null
           user_id: string
         }
+      }
+      halfvec_avg: {
+        Args: { "": number[] }
+        Returns: unknown
+      }
+      halfvec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      halfvec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      halfvec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      hnsw_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_sparsevec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnswhandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflathandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      l2_norm: {
+        Args: { "": unknown } | { "": unknown }
+        Returns: number
+      }
+      l2_normalize: {
+        Args: { "": string } | { "": unknown } | { "": unknown }
+        Returns: unknown
+      }
+      sparsevec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      sparsevec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      sparsevec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      vector_avg: {
+        Args: { "": number[] }
+        Returns: string
+      }
+      vector_dims: {
+        Args: { "": string } | { "": unknown }
+        Returns: number
+      }
+      vector_norm: {
+        Args: { "": string }
+        Returns: number
+      }
+      vector_out: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      vector_send: {
+        Args: { "": string }
+        Returns: string
+      }
+      vector_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
       }
     }
     Enums: {
