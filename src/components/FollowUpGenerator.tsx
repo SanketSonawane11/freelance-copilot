@@ -258,11 +258,11 @@ export const FollowUpGenerator = () => {
             <CardTitle>Generated Follow-Up</CardTitle>
             <CardDescription>
               AI-crafted follow-up ready to send
-              {aiModel && (
+              {/* {aiModel && (
                 <span className="ml-2 bg-slate-100 px-2 py-1 rounded text-xs text-slate-600">
                   Model: {aiModel} | Tokens: {usedTokens ?? "?"}
                 </span>
-              )}
+              )} */}
             </CardDescription>
           </CardHeader>
           <CardContent>
