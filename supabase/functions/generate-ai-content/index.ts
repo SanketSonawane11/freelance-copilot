@@ -14,6 +14,84 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// Model fallback hierarchy - ordered by rate limits (most generous first)
+const MODELS = [
+  { name: 'gemini-1.5-flash', maxTokens: 1500 },
+  { name: 'gemini-1.0-pro', maxTokens: 1200 },
+] as const;
+
+async function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function callGeminiWithFallback(prompt: string, plan: string, retryCount = 0): Promise<{ content: string; model: string; tokenCount: number }> {
+  
+  for (const modelConfig of MODELS) {
+    try {
+      console.log(`Attempting generation with model: ${modelConfig.name}`);
+      
+      const maxTokens = plan === "pro" ? modelConfig.maxTokens : Math.min(modelConfig.maxTokens, 1000);
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelConfig.name}:generateContent?key=${GEMINI_API_KEY}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            maxOutputTokens: maxTokens,
+            temperature: modelConfig.name === 'gemini-1.0-pro' ? 0.7 : undefined,
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log(`Model ${modelConfig.name} failed with status ${response.status}:`, errorText);
+        
+        // If it's a 429 error, try exponential backoff on the first model only
+        if (response.status === 429 && modelConfig === MODELS[0] && retryCount < 2) {
+          const backoffTime = Math.pow(2, retryCount) * 6000; // 6s, 12s
+          console.log(`Rate limited, retrying in ${backoffTime}ms...`);
+          await sleep(backoffTime);
+          return callGeminiWithFallback(prompt, plan, retryCount + 1);
+        }
+        
+        // Continue to next model if current one fails
+        continue;
+      }
+
+      const data = await response.json();
+      
+      if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+        console.log(`Model ${modelConfig.name} returned invalid response format`);
+        continue;
+      }
+
+      const content = data.candidates[0].content.parts[0].text.trim();
+      const tokenCount = data.usageMetadata?.totalTokenCount || 0;
+      
+      return {
+        content,
+        model: modelConfig.name,
+        tokenCount
+      };
+      
+    } catch (error: any) {
+      console.log(`Model ${modelConfig.name} failed with error:`, error.message);
+      continue;
+    }
+  }
+  
+  // If all models fail, throw error
+  throw new Error('All Gemini models are currently unavailable. Please try again in a few minutes.');
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -51,9 +129,7 @@ serve(async (req) => {
   }
 
   let combined_prompt = "";
-  let max_tokens = plan === "pro" ? (prefer_gpt4o ? 500 : 400) : 300;
   let tone = formInputs.tone;
-  let model = plan === "pro" ? "gemini-1.5-pro" : "gemini-1.5-flash";
 
   if (type === "proposal") {
     const system_context = plan === "pro"
@@ -87,61 +163,29 @@ Urgency: ${formInputs.urgency || "Medium"}
 Write a professional follow-up message. Use clear, readable text without JSON formatting.`;
   }
 
-  // Generate new content using Gemini
+  // Generate new content using Gemini with fallback
   let result_content = "";
   let tokens_used = 0;
-  let model_used = model;
-  let errorMsg = "";
+  let model_used = "";
 
   try {
-    console.log("Calling Gemini API with model:", model_used);
+    console.log("Generating content with Gemini fallback strategy...");
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: combined_prompt
-          }]
-        }],
-        generationConfig: {
-          maxOutputTokens: max_tokens,
-          temperature: 0.7,
-        }
-      }),
-    });
+    const result = await callGeminiWithFallback(combined_prompt, plan);
+    result_content = result.content;
+    tokens_used = result.tokenCount;
+    model_used = result.model;
 
-    console.log("Gemini API response status:", response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini API error response:", errorText);
-      errorMsg = `Gemini API error: ${response.status} - ${errorText}`;
-      throw new Error(errorMsg);
-    }
-
-    const data = await response.json();
-    console.log("Gemini API response:", JSON.stringify(data, null, 2));
-
-    if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
-      errorMsg = "Invalid response from Gemini API";
-      throw new Error(errorMsg);
-    }
-
-    // Extract content from response
-    result_content = data.candidates[0].content.parts[0].text.trim();
-    tokens_used = data.usageMetadata?.totalTokenCount || 0;
-
-    console.log("Generated content length:", result_content.length);
+    console.log(`Generated content length: ${result_content.length}, tokens: ${tokens_used}, model: ${model_used}`);
 
   } catch (err: any) {
     console.error("AI generation error:", err);
     return new Response(
-      JSON.stringify({ error: `AI generation failed: ${err?.message || errorMsg || "unknown error"}` }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ 
+        error: "AI generation is temporarily unavailable. Please try again in a few minutes.",
+        details: err?.message || "Rate limits exceeded"
+      }),
+      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 

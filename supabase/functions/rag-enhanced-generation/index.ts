@@ -9,6 +9,84 @@ const corsHeaders = {
 
 const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
+// Model fallback hierarchy - ordered by rate limits (most generous first)
+const MODELS = [
+  { name: 'gemini-1.5-flash', maxTokens: 1500 },
+  { name: 'gemini-1.0-pro', maxTokens: 1200 },
+] as const;
+
+async function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function callGeminiWithFallback(prompt: string, plan: string, retryCount = 0): Promise<{ content: string; model: string; tokenCount: number }> {
+  
+  for (const modelConfig of MODELS) {
+    try {
+      console.log(`RAG: Attempting generation with model: ${modelConfig.name}`);
+      
+      const maxTokens = plan === "pro" ? modelConfig.maxTokens : Math.min(modelConfig.maxTokens, 1000);
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelConfig.name}:generateContent?key=${geminiApiKey}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            maxOutputTokens: maxTokens,
+            temperature: modelConfig.name === 'gemini-1.0-pro' ? 0.7 : undefined,
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log(`RAG: Model ${modelConfig.name} failed with status ${response.status}:`, errorText);
+        
+        // If it's a 429 error, try exponential backoff on the first model only
+        if (response.status === 429 && modelConfig === MODELS[0] && retryCount < 2) {
+          const backoffTime = Math.pow(2, retryCount) * 6000; // 6s, 12s
+          console.log(`RAG: Rate limited, retrying in ${backoffTime}ms...`);
+          await sleep(backoffTime);
+          return callGeminiWithFallback(prompt, plan, retryCount + 1);
+        }
+        
+        // Continue to next model if current one fails
+        continue;
+      }
+
+      const data = await response.json();
+      
+      if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+        console.log(`RAG: Model ${modelConfig.name} returned invalid response format`);
+        continue;
+      }
+
+      const content = data.candidates[0].content.parts[0].text.trim();
+      const tokenCount = data.usageMetadata?.totalTokenCount || 0;
+      
+      return {
+        content,
+        model: modelConfig.name,
+        tokenCount
+      };
+      
+    } catch (error: any) {
+      console.log(`RAG: Model ${modelConfig.name} failed with error:`, error.message);
+      continue;
+    }
+  }
+  
+  // If all models fail, throw error
+  throw new Error('All Gemini models are currently unavailable. Please try again in a few minutes.');
+}
+
 interface RagRequest {
   type: 'proposal' | 'followup' | 'invoice';
   formInputs: any;
@@ -262,34 +340,11 @@ Write a follow-up message for:
 - Urgency: ${formInputs.urgency}`;
     }
 
-    // Step 4: Generate content with Gemini
-    const model = prefer_gpt4o || plan === 'pro' ? 'gemini-1.5-pro' : 'gemini-1.5-flash';
-    
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: combinedPrompt
-          }]
-        }],
-        generationConfig: {
-          maxOutputTokens: plan === 'pro' ? 2000 : 1500,
-          temperature: 0.7,
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.statusText}`);
-    }
-
-    const aiResponse = await response.json();
-    const generatedContent = aiResponse.candidates[0].content.parts[0].text;
-    const tokensUsed = aiResponse.usageMetadata?.totalTokenCount || 0;
+    // Step 4: Generate content with Gemini (with fallback)
+    const result = await callGeminiWithFallback(combinedPrompt, plan);
+    const generatedContent = result.content;
+    const tokensUsed = result.tokenCount;
+    const modelUsed = result.model;
 
     // Step 5: Store the generated content as chunks (in background)
     if (client_id && project_id) {
@@ -297,13 +352,13 @@ Write a follow-up message for:
       storeContentChunks(supabase, user_id, client_id, project_id, generatedContent, type);
     }
 
-    console.log(`RAG generation completed: tokens=${tokensUsed}, model=${model}`);
+    console.log(`RAG generation completed: tokens=${tokensUsed}, model=${modelUsed}`);
 
     return new Response(
       JSON.stringify({
         content: generatedContent,
         tokens_used: tokensUsed,
-        model: model,
+        model: modelUsed,
         context_used: relevantChunks.length > 0 || !!projectSummary,
         relevant_chunks_count: relevantChunks.length
       }),
@@ -317,12 +372,12 @@ Write a follow-up message for:
     console.error("RAG generation error:", error);
     return new Response(
       JSON.stringify({ 
-        error: "Content generation failed. Please try again.",
-        details: error.message 
+        error: "AI generation is temporarily unavailable. Please try again in a few minutes.",
+        details: error.message?.includes('unavailable') ? "Rate limits exceeded" : error.message
       }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500 
+        status: 503 
       }
     );
   }
