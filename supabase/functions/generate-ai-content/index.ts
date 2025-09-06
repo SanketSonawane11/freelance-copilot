@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -43,24 +43,26 @@ serve(async (req) => {
     });
   }
 
-  if (!OPENAI_API_KEY) {
-    return new Response(JSON.stringify({ error: "OpenAI API key not configured" }), { 
+  if (!GEMINI_API_KEY) {
+    return new Response(JSON.stringify({ error: "Gemini API key not configured" }), { 
       status: 500, 
       headers: { ...corsHeaders, "Content-Type": "application/json" } 
     });
   }
 
-  let system_prompt = "";
-  let user_prompt = "";
-  let temperature = 0.6;
+  let combined_prompt = "";
   let max_tokens = plan === "pro" ? (prefer_gpt4o ? 500 : 400) : 300;
   let tone = formInputs.tone;
+  let model = plan === "pro" ? "gemini-1.5-pro" : "gemini-1.5-flash";
 
   if (type === "proposal") {
-    system_prompt = plan === "pro"
+    const system_context = plan === "pro"
       ? "You are an expert freelance proposal generator. Write concise, impactful, and persuasive proposals for Indian freelancers, tailored to client, project type, and user-given tone. Write clean, professional text without JSON formatting or special characters. Format the proposal as readable text with proper paragraphs and structure."
       : "You generate short, clear, professional proposals for freelancers. Write clean, readable text without JSON formatting. Use proper paragraphs and professional structure.";
-    user_prompt = `Client: ${formInputs.clientInfo || ""}
+    
+    combined_prompt = `${system_context}
+
+Client: ${formInputs.clientInfo || ""}
 Type: ${formInputs.projectType || ""}
 Requirements: ${formInputs.projectDetails || ""}
 ${formInputs.budget ? `Budget: ${formInputs.budget}` : ""}
@@ -69,10 +71,13 @@ Tone: ${tone || "Professional"}
 
 Write a professional proposal that addresses these requirements. Use clear paragraphs and professional language. Do not use JSON format.`;
   } else {
-    system_prompt = plan === "pro"
+    const system_context = plan === "pro"
       ? "You are an expert at writing polite, assertive, and contextual follow-up messages between Indian freelancers and clients. Write clean, readable text without JSON formatting. Use proper email/message structure."
       : "Generate a short, gentle client follow-up. Write clean, readable text without JSON formatting.";
-    user_prompt = `Client: ${formInputs.clientName || ""}
+    
+    combined_prompt = `${system_context}
+
+Client: ${formInputs.clientName || ""}
 Project/Proposal: ${formInputs.projectTitle || ""}
 Last contact: ${formInputs.lastContact || ""}
 Reason: ${formInputs.followUpReason || ""}
@@ -82,53 +87,53 @@ Urgency: ${formInputs.urgency || "Medium"}
 Write a professional follow-up message. Use clear, readable text without JSON formatting.`;
   }
 
-  // Generate new content without caching
+  // Generate new content using Gemini
   let result_content = "";
   let tokens_used = 0;
-  let model_used = "gpt-4o-mini";
+  let model_used = model;
   let errorMsg = "";
 
   try {
-    console.log("Calling OpenAI API with model:", model_used);
+    console.log("Calling Gemini API with model:", model_used);
     
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: model_used,
-        messages: [
-          { role: "system", content: system_prompt },
-          { role: "user", content: user_prompt },
-        ],
-        temperature,
-        max_tokens,
+        contents: [{
+          parts: [{
+            text: combined_prompt
+          }]
+        }],
+        generationConfig: {
+          maxOutputTokens: max_tokens,
+          temperature: 0.7,
+        }
       }),
     });
 
-    console.log("OpenAI API response status:", response.status);
+    console.log("Gemini API response status:", response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("OpenAI API error response:", errorText);
-      errorMsg = `OpenAI API error: ${response.status} - ${errorText}`;
+      console.error("Gemini API error response:", errorText);
+      errorMsg = `Gemini API error: ${response.status} - ${errorText}`;
       throw new Error(errorMsg);
     }
 
     const data = await response.json();
-    console.log("OpenAI API response:", JSON.stringify(data, null, 2));
+    console.log("Gemini API response:", JSON.stringify(data, null, 2));
 
-    if (!data.choices || !data.choices[0]?.message?.content) {
-      errorMsg = "Invalid response from OpenAI API";
+    if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+      errorMsg = "Invalid response from Gemini API";
       throw new Error(errorMsg);
     }
 
     // Extract content from response
-    let content = data.choices[0].message.content;
-    tokens_used = data.usage?.total_tokens || 0;
-    result_content = content.trim();
+    result_content = data.candidates[0].content.parts[0].text.trim();
+    tokens_used = data.usageMetadata?.totalTokenCount || 0;
 
     console.log("Generated content length:", result_content.length);
 

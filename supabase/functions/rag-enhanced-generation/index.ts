@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
 interface RagRequest {
   type: 'proposal' | 'followup' | 'invoice';
@@ -54,17 +54,20 @@ function chunkText(text: string, maxChunkSize: number = 300): string[] {
   return chunks.filter(chunk => chunk.length > 20); // Filter out very short chunks
 }
 
-// Generate embeddings
+// Generate embeddings using Gemini
 async function generateEmbedding(text: string): Promise<number[]> {
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiApiKey}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${openAIApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'text-embedding-3-small',
-      input: text
+      model: 'models/text-embedding-004',
+      content: {
+        parts: [{
+          text: text
+        }]
+      }
     }),
   });
 
@@ -73,7 +76,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
   }
 
   const data = await response.json();
-  return data.data[0].embedding;
+  return data.embedding.values;
 }
 
 // Search for similar content
@@ -209,7 +212,7 @@ serve(async (req) => {
     }
 
     let relevantChunks: VectorChunk[] = [];
-    if (searchQuery && openAIApiKey) {
+    if (searchQuery && geminiApiKey) {
       try {
         const queryEmbedding = await generateEmbedding(searchQuery);
         relevantChunks = await searchSimilarContent(supabase, queryEmbedding, user_id, project_id);
@@ -218,9 +221,8 @@ serve(async (req) => {
       }
     }
 
-    // Step 3: Build enhanced prompt with context
-    let systemPrompt = '';
-    let userPrompt = '';
+    // Step 3: Build enhanced prompt with context (Gemini format - single prompt)
+    let combinedPrompt = '';
 
     const contextSection = [];
     if (projectSummary) {
@@ -238,16 +240,20 @@ serve(async (req) => {
       : '';
 
     if (type === 'proposal') {
-      systemPrompt = `You are an expert freelancer writing compelling project proposals. Write professional, persuasive proposals that highlight value and build client confidence.${contextText}`;
-      userPrompt = `Write a professional project proposal for:
+      const systemContext = `You are an expert freelancer writing compelling project proposals. Write professional, persuasive proposals that highlight value and build client confidence.${contextText}`;
+      combinedPrompt = `${systemContext}
+
+Write a professional project proposal for:
 - Client: ${formInputs.clientName}
 - Project: ${formInputs.projectDesc}
 - Tone: ${formInputs.tone}
 - Timeline: ${formInputs.timeline}
 - Budget: ${formInputs.budget}`;
     } else if (type === 'followup') {
-      systemPrompt = `You are an expert at writing client follow-up messages. Create effective, professional follow-ups that maintain relationships and move projects forward.${contextText}`;
-      userPrompt = `Write a follow-up message for:
+      const systemContext = `You are an expert at writing client follow-up messages. Create effective, professional follow-ups that maintain relationships and move projects forward.${contextText}`;
+      combinedPrompt = `${systemContext}
+
+Write a follow-up message for:
 - Client: ${formInputs.clientName}
 - Project: ${formInputs.projectTitle}
 - Last Contact: ${formInputs.lastContact}
@@ -256,33 +262,34 @@ serve(async (req) => {
 - Urgency: ${formInputs.urgency}`;
     }
 
-    // Step 4: Generate content with OpenAI
-    const model = prefer_gpt4o || plan === 'pro' ? 'gpt-4o' : 'gpt-4o-mini';
+    // Step 4: Generate content with Gemini
+    const model = prefer_gpt4o || plan === 'pro' ? 'gemini-1.5-pro' : 'gemini-1.5-flash';
     
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.7,
-        max_tokens: plan === 'pro' ? 2000 : 1500,
+        contents: [{
+          parts: [{
+            text: combinedPrompt
+          }]
+        }],
+        generationConfig: {
+          maxOutputTokens: plan === 'pro' ? 2000 : 1500,
+          temperature: 0.7,
+        }
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
+      throw new Error(`Gemini API error: ${response.statusText}`);
     }
 
     const aiResponse = await response.json();
-    const generatedContent = aiResponse.choices[0].message.content;
-    const tokensUsed = aiResponse.usage?.total_tokens || 0;
+    const generatedContent = aiResponse.candidates[0].content.parts[0].text;
+    const tokensUsed = aiResponse.usageMetadata?.totalTokenCount || 0;
 
     // Step 5: Store the generated content as chunks (in background)
     if (client_id && project_id) {
