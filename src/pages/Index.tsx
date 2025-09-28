@@ -1,13 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Brain, FileText, MessageSquare, Receipt, Calculator, Star, Users, Clock, CheckCircle } from "lucide-react";
+import { ArrowRight, Brain, FileText, MessageSquare, Receipt, Calculator, Zap, TrendingUp, Target, CheckCircle } from "lucide-react";
 import { Dashboard } from "@/components/Dashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useEffect, useRef } from "react";
 import { getPlanLimits, getPlanPrice } from "@/utils/planLimits";
 
 const Index = () => {
@@ -15,14 +14,15 @@ const Index = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 flex items-center justify-center">
+        <div className="text-center animate-fade-in">
           <div className="relative w-16 h-16 mx-auto mb-6">
-            <div className="w-16 h-16 bg-brand-primary rounded-2xl flex items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-2xl opacity-20 blur-xl animate-pulse"></div>
+            <div className="relative w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center backdrop-blur-sm">
               <Brain className="w-8 h-8 text-white animate-pulse" />
             </div>
           </div>
-          <p className="text-text-secondary font-lexend">Initializing neural networks...</p>
+          <p className="text-slate-600 font-medium">Initializing neural networks...</p>
         </div>
       </div>
     );
@@ -33,28 +33,31 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Clean, minimal header */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 overflow-hidden">
+      {/* Header with glassmorphism */}
       <motion.header
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border"
+        className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 border-b border-white/20 shadow-lg shadow-purple-500/5"
       >
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-brand-primary rounded-xl flex items-center justify-center">
-              <Brain className="w-6 h-6 text-white" />
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-xl opacity-20 blur-lg"></div>
+              <div className="relative w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                <Brain className="w-6 h-6 text-white" />
+              </div>
             </div>
             <div>
-              <span className="text-xl font-fraunces font-semibold text-brand-primary">
+              <span className="text-xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent">
                 Freelancer AI
               </span>
-              <p className="text-xs text-text-secondary font-lexend -mt-1">Neural Copilot</p>
+              <p className="text-xs text-slate-500 -mt-1">Neural Copilot</p>
             </div>
           </div>
           <Link to="/auth">
-            <Button variant="action" className="font-lexend">
+            <Button className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white border-0 shadow-lg shadow-blue-500/25">
               Get Started
               <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
@@ -62,278 +65,179 @@ const Index = () => {
         </div>
       </motion.header>
 
-      {/* Asymmetrical Hero Section */}
-      <section className="py-20 px-6">
-        <InteractiveHero />
-      </section>
+      {/* Hero Section with Parallax */}
+      <ParallaxHero />
 
-      {/* Features in 2x2 Grid */}
-      <section className="py-20 px-6">
+      {/* Horizontal Scroll Features */}
+      <HorizontalScrollSection />
+
+      {/* Stats with Glass Cards */}
+      <section className="py-20 px-6 relative">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-fraunces font-semibold text-brand-primary mb-4">
-              Neural-Enhanced Capabilities
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 bg-clip-text text-transparent mb-4">
+              Proven Neural Impact
             </h2>
-            <p className="text-lg font-lexend text-text-secondary max-w-2xl mx-auto">
-              Four AI-powered tools designed to transform your freelance workflow with calm intelligence
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+              Real results from AI-powered freelance operations
             </p>
-          </div>
+          </motion.div>
           
-          {/* 2x2 Grid Layout as specified */}
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-            >
-              <Card className="h-full p-8 hover:shadow-md transition-shadow duration-200 border-border bg-card">
-                <CardHeader className="text-left pb-6">
-                  <div className="w-16 h-16 bg-brand-primary/10 rounded-2xl flex items-center justify-center mb-4">
-                    <FileText className="w-8 h-8 text-brand-primary" />
-                  </div>
-                  <CardTitle className="text-xl font-fraunces font-semibold text-foreground">Neural Proposals</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <CardDescription className="text-text-secondary font-lexend leading-relaxed">
-                    AI-crafted proposals that understand context, tone, and client psychology to maximize your win rates with intelligent precision.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3, delay: 0.2 }}
-            >
-              <Card className="h-full p-8 hover:shadow-md transition-shadow duration-200 border-border bg-card">
-                <CardHeader className="text-left pb-6">
-                  <div className="w-16 h-16 bg-brand-primary/10 rounded-2xl flex items-center justify-center mb-4">
-                    <MessageSquare className="w-8 h-8 text-brand-primary" />
-                  </div>
-                  <CardTitle className="text-xl font-fraunces font-semibold text-foreground">Smart Follow-ups</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <CardDescription className="text-text-secondary font-lexend leading-relaxed">
-                    Intelligent follow-up sequences with perfect timing and personalized messaging that nurtures relationships naturally.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3, delay: 0.3 }}
-            >
-              <Card className="h-full p-8 hover:shadow-md transition-shadow duration-200 border-border bg-card">
-                <CardHeader className="text-left pb-6">
-                  <div className="w-16 h-16 bg-brand-primary/10 rounded-2xl flex items-center justify-center mb-4">
-                    <Receipt className="w-8 h-8 text-brand-primary" />
-                  </div>
-                  <CardTitle className="text-xl font-fraunces font-semibold text-foreground">Neural Invoicing</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <CardDescription className="text-text-secondary font-lexend leading-relaxed">
-                    Automated invoice generation with GST compliance and intelligent PDF creation that handles the complexity for you.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3, delay: 0.4 }}
-            >
-              <Card className="h-full p-8 hover:shadow-md transition-shadow duration-200 border-border bg-card">
-                <CardHeader className="text-left pb-6">
-                  <div className="w-16 h-16 bg-brand-primary/10 rounded-2xl flex items-center justify-center mb-4">
-                    <Calculator className="w-8 h-8 text-brand-primary" />
-                  </div>
-                  <CardTitle className="text-xl font-fraunces font-semibold text-foreground">Tax Intelligence</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <CardDescription className="text-text-secondary font-lexend leading-relaxed">
-                    AI-powered tax estimation with Indian freelancer-specific insights and compliance guidance you can trust.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Clean Social Proof */}
-      <section className="py-16 px-6">
-        <div className="container mx-auto text-center max-w-4xl">
           <div className="grid md:grid-cols-3 gap-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center p-8"
-            >
-              <div className="text-4xl font-fraunces font-semibold text-brand-primary mb-2">1,200+</div>
-              <p className="text-text-secondary font-lexend">Neural Sessions</p>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-center p-8"
-            >
-              <div className="text-4xl font-fraunces font-semibold text-brand-primary mb-2">₹5.2L+</div>
-              <p className="text-text-secondary font-lexend">AI-Generated Revenue</p>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="text-center p-8"
-            >
-              <div className="text-4xl font-fraunces font-semibold text-brand-primary mb-2">25 hrs</div>
-              <p className="text-text-secondary font-lexend">Weekly Time Saved</p>
-            </motion.div>
+            {[
+              { number: "1,200+", label: "Neural Sessions", gradient: "from-blue-400 to-cyan-400" },
+              { number: "₹5.2L+", label: "AI-Generated Revenue", gradient: "from-emerald-400 to-teal-400" },
+              { number: "25 hrs", label: "Weekly Time Saved", gradient: "from-purple-400 to-pink-400" }
+            ].map((stat, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl p-8 text-center shadow-lg shadow-purple-500/5 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 group"
+              >
+                <div className={`text-5xl font-bold bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent mb-2 group-hover:scale-105 transition-transform duration-300`}>
+                  {stat.number}
+                </div>
+                <p className="text-slate-600 font-medium">{stat.label}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Clean Pricing */}
-      <section className="py-20 px-6 bg-muted/30">
-        <div className="container mx-auto max-w-4xl text-center">
-          <h2 className="text-4xl font-fraunces font-semibold text-brand-primary mb-4">
-            Neural Subscription Plans
-          </h2>
-          <p className="text-lg font-lexend text-text-secondary mb-16">Choose your AI intelligence level</p>
+      {/* Pricing with Enhanced Glass Effect */}
+      <section className="py-20 px-6 relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-purple-50/50"></div>
+        <div className="container mx-auto max-w-4xl text-center relative">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-16"
+          >
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 bg-clip-text text-transparent mb-4">
+              Choose Your Neural Power
+            </h2>
+            <p className="text-xl text-slate-600">Simple pricing for powerful AI assistance</p>
+          </motion.div>
           
           <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
+              className="backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl p-8 shadow-lg shadow-purple-500/5 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300"
             >
-              <Card className="h-full p-8 border-border">
-                <CardHeader className="text-center pb-6">
-                  <div className="w-12 h-12 bg-brand-primary rounded-xl flex items-center justify-center mx-auto mb-4">
-                    <Brain className="w-6 h-6 text-white" />
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/25">
+                  <Brain className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">Starter Neural</h3>
+                <div className="text-4xl font-bold text-slate-900 mb-2">
+                  ₹{getPlanPrice('basic').amount}<span className="text-lg font-normal text-slate-600">/month</span>
+                </div>
+                <p className="text-slate-600">Perfect for emerging freelancers</p>
+              </div>
+              
+              <div className="space-y-4 mb-8">
+                {[
+                  `${getPlanLimits('basic').displayProposals} AI proposals/month`,
+                  `${getPlanLimits('basic').displayFollowups} smart follow-ups/month`,
+                  `${getPlanLimits('basic').displayInvoices} intelligent invoicing`,
+                  `${getPlanLimits('basic').displayClients} clients`,
+                  "Tax intelligence"
+                ].map((feature, index) => (
+                  <div key={index} className="flex items-center text-slate-700">
+                    <CheckCircle className="w-5 h-5 text-blue-500 mr-3 flex-shrink-0" />
+                    <span>{feature}</span>
                   </div>
-                  <CardTitle className="text-2xl font-fraunces font-semibold text-foreground">Starter Neural</CardTitle>
-                  <div className="text-4xl font-fraunces font-semibold text-brand-primary mt-4">
-                    ₹{getPlanPrice('basic').amount}<span className="text-lg font-lexend font-normal text-text-secondary">/month</span>
-                  </div>
-                  <CardDescription className="text-text-secondary font-lexend mt-2">Perfect for emerging minds</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center text-text-primary font-lexend">
-                    <CheckCircle className="w-5 h-5 text-brand-primary mr-3 flex-shrink-0" />
-                    <span>{getPlanLimits('basic').displayProposals} AI proposals/month</span>
-                  </div>
-                  <div className="flex items-center text-text-primary font-lexend">
-                    <CheckCircle className="w-5 h-5 text-brand-primary mr-3 flex-shrink-0" />
-                    <span>{getPlanLimits('basic').displayFollowups} neural follow-ups/month</span>
-                  </div>
-                  <div className="flex items-center text-text-primary font-lexend">
-                    <CheckCircle className="w-5 h-5 text-brand-primary mr-3 flex-shrink-0" />
-                    <span>{getPlanLimits('basic').displayInvoices} smart invoicing</span>
-                  </div>
-                  <div className="flex items-center text-text-primary font-lexend">
-                    <CheckCircle className="w-5 h-5 text-brand-primary mr-3 flex-shrink-0" />
-                    <span>{getPlanLimits('basic').displayClients} clients</span>
-                  </div>
-                  <div className="flex items-center text-text-primary font-lexend">
-                    <CheckCircle className="w-5 h-5 text-brand-primary mr-3 flex-shrink-0" />
-                    <span>Tax intelligence</span>
-                  </div>
-                  <Link to="/auth" className="block pt-4">
-                    <Button variant="secondary" className="w-full font-lexend">
-                      Begin Neural Journey
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+                ))}
+              </div>
+              
+              <Link to="/auth" className="block">
+                <Button variant="outline" className="w-full border-blue-200 text-blue-700 hover:bg-blue-50">
+                  Start Neural Journey
+                </Button>
+              </Link>
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
+              className="backdrop-blur-xl bg-white/40 border-2 border-purple-300 rounded-2xl p-8 shadow-xl shadow-purple-500/10 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 relative"
             >
-              <Card className="h-full p-8 border-2 border-brand-primary relative">
-                <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-brand-primary text-white font-lexend">
-                  Most Neural
-                </Badge>
-                <CardHeader className="text-center pb-6">
-                  <div className="w-12 h-12 bg-brand-primary rounded-xl flex items-center justify-center mx-auto mb-4">
-                    <Brain className="w-6 h-6 text-white" />
+              <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
+                Most Popular
+              </Badge>
+              
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-400 to-pink-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/25">
+                  <Brain className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">Pro Neural</h3>
+                <div className="text-4xl font-bold text-slate-900 mb-2">
+                  ₹{getPlanPrice('pro').amount}<span className="text-lg font-normal text-slate-600">/month</span>
+                </div>
+                <p className="text-slate-600">For advanced freelance operations</p>
+              </div>
+              
+              <div className="space-y-4 mb-8">
+                {[
+                  `${getPlanLimits('pro').displayProposals} AI proposals/month`,
+                  `${getPlanLimits('pro').displayFollowups} smart follow-ups/month`,
+                  `${getPlanLimits('pro').displayInvoices} intelligent invoicing`,
+                  `${getPlanLimits('pro').displayClients} clients`,
+                  "Advanced tax intelligence",
+                  "Priority neural support"
+                ].map((feature, index) => (
+                  <div key={index} className="flex items-center text-slate-700">
+                    <CheckCircle className="w-5 h-5 text-purple-500 mr-3 flex-shrink-0" />
+                    <span>{feature}</span>
                   </div>
-                  <CardTitle className="text-2xl font-fraunces font-semibold text-foreground">Pro Neural</CardTitle>
-                  <div className="text-4xl font-fraunces font-semibold text-brand-primary mt-4">
-                    ₹{getPlanPrice('pro').amount}<span className="text-lg font-lexend font-normal text-text-secondary">/month</span>
-                  </div>
-                  <CardDescription className="text-text-secondary font-lexend mt-2">For advanced neural networks</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center text-text-primary font-lexend">
-                    <CheckCircle className="w-5 h-5 text-brand-primary mr-3 flex-shrink-0" />
-                    <span>{getPlanLimits('pro').displayProposals} AI proposals/month</span>
-                  </div>
-                  <div className="flex items-center text-text-primary font-lexend">
-                    <CheckCircle className="w-5 h-5 text-brand-primary mr-3 flex-shrink-0" />
-                    <span>{getPlanLimits('pro').displayFollowups} neural follow-ups/month</span>
-                  </div>
-                  <div className="flex items-center text-text-primary font-lexend">
-                    <CheckCircle className="w-5 h-5 text-brand-primary mr-3 flex-shrink-0" />
-                    <span>{getPlanLimits('pro').displayInvoices} smart invoicing</span>
-                  </div>
-                  <div className="flex items-center text-text-primary font-lexend">
-                    <CheckCircle className="w-5 h-5 text-brand-primary mr-3 flex-shrink-0" />
-                    <span>{getPlanLimits('pro').displayClients} clients</span>
-                  </div>
-                  <div className="flex items-center text-text-primary font-lexend">
-                    <CheckCircle className="w-5 h-5 text-brand-primary mr-3 flex-shrink-0" />
-                    <span>Advanced tax intelligence</span>
-                  </div>
-                  <div className="flex items-center text-text-primary font-lexend">
-                    <CheckCircle className="w-5 h-5 text-brand-primary mr-3 flex-shrink-0" />
-                    <span>Priority neural support</span>
-                  </div>
-                  <Link to="/auth" className="block pt-4">
-                    <Button variant="action" className="w-full font-lexend">
-                      Activate Pro Neural
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+                ))}
+              </div>
+              
+              <Link to="/auth" className="block">
+                <Button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 shadow-lg shadow-purple-500/25">
+                  Activate Pro Neural
+                </Button>
+              </Link>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Clean Footer */}
-      <footer className="bg-card border-t border-border py-12 px-6">
+      {/* Footer */}
+      <footer className="backdrop-blur-xl bg-white/40 border-t border-white/20 py-12 px-6">
         <div className="container mx-auto text-center">
           <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="w-10 h-10 bg-brand-primary rounded-xl flex items-center justify-center">
-              <Brain className="w-6 h-6 text-white" />
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-xl opacity-20 blur-lg"></div>
+              <div className="relative w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                <Brain className="w-6 h-6 text-white" />
+              </div>
             </div>
             <div>
-              <span className="text-xl font-fraunces font-semibold text-brand-primary">Freelancer AI</span>
-              <p className="text-xs text-text-secondary font-lexend -mt-1">Neural Copilot</p>
+              <span className="text-xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent">
+                Freelancer AI
+              </span>
+              <p className="text-xs text-slate-500 -mt-1">Neural Copilot</p>
             </div>
           </div>
-          <p className="text-text-secondary font-lexend mb-6">Empowering Indian freelancers with neural-enhanced productivity</p>
-          <div className="flex justify-center space-x-8 text-sm text-text-secondary font-lexend">
-            <a href="#" className="hover:text-brand-primary transition-colors duration-200">Privacy</a>
-            <a href="#" className="hover:text-brand-primary transition-colors duration-200">Terms</a>
-            <a href="#" className="hover:text-brand-primary transition-colors duration-200">Contact</a>
+          <p className="text-slate-600 mb-6">Empowering Indian freelancers with AI-powered productivity</p>
+          <div className="flex justify-center space-x-8 text-sm text-slate-600">
+            <a href="#" className="hover:text-blue-600 transition-colors duration-200">Privacy</a>
+            <a href="#" className="hover:text-blue-600 transition-colors duration-200">Terms</a>
+            <a href="#" className="hover:text-blue-600 transition-colors duration-200">Contact</a>
           </div>
         </div>
       </footer>
@@ -341,93 +245,262 @@ const Index = () => {
   );
 };
 
-// Asymmetrical Hero with strategic whitespace
-const InteractiveHero = () => {
-  const containerRef = useRef(null);
-  const [mouse, setMouse] = useState({ x: 0, y: 0 });
+// Parallax Hero Section
+const ParallaxHero = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    const rect = (containerRef.current as HTMLDivElement)?.getBoundingClientRect();
-    if (!rect) return;
-    const x = (e.clientX - rect.left - rect.width / 2) * 0.01;
-    const y = (e.clientY - rect.top - rect.height / 2) * 0.01;
-    setMouse({ x, y });
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left - rect.width / 2) / rect.width;
+    const y = (e.clientY - rect.top - rect.height / 2) / rect.height;
+    setMousePosition({ x, y });
   };
 
   return (
-    <div
+    <section
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className="container mx-auto grid lg:grid-cols-12 gap-12 items-center min-h-[600px]"
+      className="min-h-screen flex items-center justify-center px-6 relative overflow-hidden"
     >
-      {/* Left column: 5-6 columns for content */}
-      <div className="lg:col-span-6 space-y-8">
+      {/* Animated background elements */}
+      <div className="absolute inset-0">
+        <motion.div
+          animate={{
+            x: mousePosition.x * 50,
+            y: mousePosition.y * 30,
+          }}
+          transition={{ type: "spring", damping: 25, stiffness: 100 }}
+          className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-r from-blue-400/20 to-cyan-400/20 rounded-full blur-xl"
+        />
+        <motion.div
+          animate={{
+            x: mousePosition.x * -30,
+            y: mousePosition.y * -40,
+          }}
+          transition={{ type: "spring", damping: 25, stiffness: 100 }}
+          className="absolute bottom-20 right-20 w-48 h-48 bg-gradient-to-r from-purple-400/20 to-pink-400/20 rounded-full blur-xl"
+        />
+      </div>
+
+      <div className="container mx-auto grid lg:grid-cols-2 gap-16 items-center max-w-7xl relative z-10">
+        {/* Left Content */}
+        <motion.div
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="space-y-8"
+        >
+          <motion.div
+            animate={{
+              x: mousePosition.x * 10,
+              y: mousePosition.y * 5,
+            }}
+            transition={{ type: "spring", damping: 25, stiffness: 100 }}
+          >
+            <h1 className="text-6xl lg:text-7xl font-bold leading-none">
+              <span className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 bg-clip-text text-transparent">
+                Your AI
+              </span>
+              <br />
+              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent">
+                Freelance
+              </span>
+              <br />
+              <span className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 bg-clip-text text-transparent">
+                Copilot
+              </span>
+            </h1>
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            animate-mouse={{
+              x: mousePosition.x * 5,
+              y: mousePosition.y * 3,
+            }}
+            className="text-xl text-slate-600 leading-relaxed max-w-xl"
+          >
+            Generate winning proposals, automate follow-ups, create professional invoices, 
+            and handle taxes—all powered by AI that understands your freelance business.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="flex flex-col sm:flex-row gap-4"
+          >
+            <Link to="/auth">
+              <Button className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-lg px-8 py-4 rounded-xl border-0 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300">
+                Start Free Trial
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </Link>
+            <Button variant="outline" className="text-lg px-8 py-4 rounded-xl border-slate-300 text-slate-700 hover:bg-slate-50">
+              Watch Demo
+            </Button>
+          </motion.div>
+        </motion.div>
+
+        {/* Right Visual */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1, delay: 0.2 }}
+          className="relative"
+        >
+          <motion.div
+            animate={{
+              x: mousePosition.x * -20,
+              y: mousePosition.y * -15,
+              rotateX: mousePosition.y * 10,
+              rotateY: mousePosition.x * 10,
+            }}
+            transition={{ type: "spring", damping: 25, stiffness: 100 }}
+            className="relative w-full h-[500px] backdrop-blur-xl bg-white/30 border border-white/20 rounded-3xl shadow-2xl shadow-purple-500/10 overflow-hidden"
+            style={{ transformStyle: "preserve-3d" }}
+          >
+            {/* Neural network visualization */}
+            <div className="absolute inset-0 p-8">
+              <div className="grid grid-cols-3 gap-8 h-full">
+                {[
+                  { icon: FileText, gradient: "from-blue-400 to-cyan-400", delay: 0 },
+                  { icon: MessageSquare, gradient: "from-emerald-400 to-teal-400", delay: 0.2 },
+                  { icon: Receipt, gradient: "from-purple-400 to-pink-400", delay: 0.4 },
+                  { icon: Calculator, gradient: "from-orange-400 to-rose-400", delay: 0.6 },
+                  { icon: TrendingUp, gradient: "from-blue-500 to-purple-500", delay: 0.8 },
+                  { icon: Target, gradient: "from-emerald-500 to-cyan-500", delay: 1.0 }
+                ].map((item, index) => {
+                  const Icon = item.icon;
+                  return (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: item.delay, duration: 0.5 }}
+                      className={`w-16 h-16 bg-gradient-to-r ${item.gradient} rounded-2xl flex items-center justify-center shadow-lg animate-float`}
+                      style={{ animationDelay: `${index * 0.2}s` }}
+                    >
+                      <Icon className="w-8 h-8 text-white" />
+                    </motion.div>
+                  );
+                })}
+              </div>
+              
+              {/* Central brain */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-purple-500/25 animate-neural-pulse">
+                <Brain className="w-10 h-10 text-white" />
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+// Horizontal Scrolling Features Section
+const HorizontalScrollSection = () => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const features = [
+    {
+      title: "AI Proposals",
+      description: "Generate compelling proposals that win clients with context-aware AI",
+      icon: FileText,
+      gradient: "from-blue-400 to-cyan-400",
+      metrics: "95% Win Rate"
+    },
+    {
+      title: "Smart Follow-ups", 
+      description: "Automated follow-up sequences that nurture leads naturally",
+      icon: MessageSquare,
+      gradient: "from-emerald-400 to-teal-400",
+      metrics: "3x Response Rate"
+    },
+    {
+      title: "Neural Invoicing",
+      description: "Professional invoices with GST compliance and payment tracking",
+      icon: Receipt,
+      gradient: "from-purple-400 to-pink-400",
+      metrics: "Instant Generation"
+    },
+    {
+      title: "Tax Intelligence",
+      description: "AI-powered tax estimation with Indian freelancer insights",
+      icon: Calculator,
+      gradient: "from-orange-400 to-rose-400",
+      metrics: "100% Compliant"
+    }
+  ];
+
+  return (
+    <section className="py-20 relative overflow-hidden">
+      <div className="container mx-auto px-6 mb-12">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          style={{
-            transform: `translate(${mouse.x * 5}px, ${mouse.y * 5}px)`,
-          }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center"
         >
-          <h1 className="text-5xl lg:text-6xl font-fraunces font-bold text-brand-primary leading-tight">
-            Your Neural-Powered
-            <br />
-            <span className="text-foreground">Freelance Copilot</span>
-          </h1>
-        </motion.div>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-          style={{
-            transform: `translate(${mouse.x * 3}px, ${mouse.y * 3}px)`,
-          }}
-          className="text-xl font-lexend text-text-secondary leading-relaxed max-w-lg"
-        >
-          Transform your freelance business with AI that understands your workflow. 
-          Create proposals, manage follow-ups, handle invoicing, and estimate taxes with calm intelligence.
-        </motion.p>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
-          className="flex flex-col sm:flex-row gap-4"
-        >
-          <Link to="/auth">
-            <Button variant="action" size="lg" className="font-lexend text-lg px-8 py-3">
-              Begin Neural Journey
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
-          </Link>
-          <Button variant="ghost" size="lg" className="font-lexend text-lg px-8 py-3 text-brand-primary hover:text-brand-primary-light">
-            Watch AI Demo
-          </Button>
+          <h2 className="text-5xl font-bold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 bg-clip-text text-transparent mb-4">
+            Neural-Enhanced Tools
+          </h2>
+          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+            Four powerful AI tools designed to transform your freelance workflow
+          </p>
         </motion.div>
       </div>
 
-      {/* Right column: 6-7 columns for illustration */}
-      <div className="lg:col-span-6 relative">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-          style={{
-            transform: `translate(${mouse.x * -8}px, ${mouse.y * -8}px)`,
-          }}
-          className="relative w-full h-96 lg:h-[500px] bg-gradient-to-br from-brand-primary/5 to-brand-primary/10 rounded-3xl flex items-center justify-center border border-brand-primary/20"
-        >
-          <div className="text-center space-y-4">
-            <div className="w-24 h-24 bg-brand-primary rounded-2xl flex items-center justify-center mx-auto">
-              <Brain className="w-12 h-12 text-white" />
-            </div>
-            <p className="font-lexend text-text-secondary text-sm">Neural Copilot Ready</p>
-          </div>
-        </motion.div>
+      <div
+        ref={scrollRef}
+        className="flex gap-8 px-6 overflow-x-auto scrollbar-hide"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {features.map((feature, index) => {
+          const Icon = feature.icon;
+          return (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.1 }}
+              className="flex-shrink-0 w-80 backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl p-8 shadow-lg shadow-purple-500/5 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 group"
+            >
+              <div className="relative mb-6">
+                <div className={`w-16 h-16 bg-gradient-to-r ${feature.gradient} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                  <Icon className="w-8 h-8 text-white" />
+                </div>
+                <Badge className={`absolute -top-2 -right-2 bg-gradient-to-r ${feature.gradient} text-white border-0 text-xs`}>
+                  {feature.metrics}
+                </Badge>
+              </div>
+              
+              <h3 className="text-2xl font-bold text-slate-900 mb-4 group-hover:text-slate-700 transition-colors duration-300">
+                {feature.title}
+              </h3>
+              
+              <p className="text-slate-600 leading-relaxed">
+                {feature.description}
+              </p>
+            </motion.div>
+          );
+        })}
       </div>
-    </div>
+
+      {/* Scroll indicator */}
+      <div className="flex justify-center mt-8">
+        <p className="text-sm text-slate-500 flex items-center gap-2">
+          <ArrowRight className="w-4 h-4" />
+          Scroll to explore tools
+        </p>
+      </div>
+    </section>
   );
 };
 
