@@ -19,12 +19,34 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				'fraunces': ['Fraunces', 'serif'],
+				'lexend': ['Lexend', 'sans-serif'],
+				'sans': ['Lexend', 'system-ui', 'sans-serif'], // Default sans to Lexend
+				'serif': ['Fraunces', 'Georgia', 'serif'], // Default serif to Fraunces
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
+				
+				// Brand colors following the calm productivity system
+				brand: {
+					primary: 'hsl(var(--brand-primary))',
+					'primary-light': 'hsl(var(--brand-primary-light))',
+				},
+				action: {
+					primary: 'hsl(var(--action-primary))',
+					'primary-hover': 'hsl(var(--action-primary-hover))',
+				},
+				text: {
+					primary: 'hsl(var(--text-primary))',
+					secondary: 'hsl(var(--text-secondary))',
+				},
+				
+				// Keeping shadcn compatibility
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))'
@@ -63,6 +85,13 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				}
+			},
+			spacing: {
+				// 8px grid system for consistent spacing
+				'18': '4.5rem',   // 72px
+				'22': '5.5rem',   // 88px
+				'26': '6.5rem',   // 104px
+				'30': '7.5rem',   // 120px
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
