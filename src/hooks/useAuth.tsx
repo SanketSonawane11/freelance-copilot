@@ -42,25 +42,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signUp = async (email: string, password: string, name: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          name: name
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            name: name
+          }
         }
+      });
+      
+      if (error && (error.message.includes("Failed to fetch") || error.name === "TypeError")) {
+        console.error("Network error during signup:", error, "Origin:", window.location.origin);
       }
-    });
-    return { error };
+      
+      return { error };
+    } catch (error: any) {
+      console.error("Signup error:", error, "Origin:", window.location.origin);
+      return { error };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    return { error };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error && (error.message.includes("Failed to fetch") || error.name === "TypeError")) {
+        console.error("Network error during signin:", error, "Origin:", window.location.origin, "Endpoint: /auth/v1/token");
+      }
+      
+      return { error };
+    } catch (error: any) {
+      console.error("Signin error:", error, "Origin:", window.location.origin);
+      return { error };
+    }
   };
 
   const signOut = async () => {

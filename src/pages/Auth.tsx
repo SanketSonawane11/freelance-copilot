@@ -11,6 +11,7 @@ import { createInitialSubscription } from "@/utils/createInitialSubscription";
 import { useNavigate } from "react-router-dom";
 import { useRazorpaySubscription } from "@/hooks/useRazorpaySubscription";
 import { getPlanLimits, getPlanPrice } from "@/utils/planLimits";
+import AuthDiagnostics from "@/components/AuthDiagnostics";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -39,7 +40,16 @@ const Auth = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Better error handling for network issues
+        if (error.message.includes("Failed to fetch") || error.name === "TypeError") {
+          console.error("Network error during signup:", error, "Origin:", window.location.origin);
+          toast.error("Cannot reach Supabase Auth. Please check CORS configuration or try again.");
+        } else {
+          toast.error(error.message || "Failed to create account");
+        }
+        throw error;
+      }
 
       if (data.user) {
         // Always create starter subscription first
@@ -85,12 +95,20 @@ const Auth = () => {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Better error handling for network issues
+        if (error.message.includes("Failed to fetch") || error.name === "TypeError") {
+          console.error("Network error during signin:", error, "Origin:", window.location.origin, "Endpoint: /auth/v1/token");
+          toast.error("Cannot reach Supabase Auth from this origin. Please add your current origin to Auth → Allowed CORS origins and Additional Redirect URLs.");
+        } else {
+          toast.error(error.message || "Failed to sign in");
+        }
+        throw error;
+      }
       toast.success("Signed in successfully!");
       navigate("/");
     } catch (error: any) {
-      console.error("Signin error:", error);
-      toast.error(error.message || "Failed to sign in");
+      // Error already handled above
     } finally {
       setIsLoading(false);
     }
@@ -315,6 +333,8 @@ const Auth = () => {
             </div>
           </TabsContent>
         </Tabs>
+
+        <AuthDiagnostics />
       </div>
     </div>
   );
