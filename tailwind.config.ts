@@ -20,10 +20,7 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-				'fraunces': ['Fraunces', 'serif'],
-				'lexend': ['Lexend', 'sans-serif'],
-				'sans': ['Lexend', 'system-ui', 'sans-serif'], // Default sans to Lexend
-				'serif': ['Fraunces', 'Georgia', 'serif'], // Default serif to Fraunces
+				'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',

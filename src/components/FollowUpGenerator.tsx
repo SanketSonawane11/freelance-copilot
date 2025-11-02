@@ -1,24 +1,12 @@
 import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { FileText, Sparkles, Copy, Download, RefreshCw } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MessageSquare, Sparkles, Copy, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useUserData } from "@/hooks/useUserData";
 import { useUsageLimit } from "@/hooks/useUsageLimit";
@@ -37,12 +25,8 @@ export const FollowUpGenerator = () => {
   const [usedTokens, setUsedTokens] = useState<number | null>(null);
   const [aiModel, setAiModel] = useState<string | null>(null);
 
-  // Fetch dynamic proposal usage
-  const { data: userData, isLoading: loadingUser } = useUserData();
-  const subscriptionTier =
-    userData?.billingInfo?.current_plan ||
-    userData?.profile?.subscription_tier ||
-    "starter";
+  const { data: userData } = useUserData();
+  const subscriptionTier = userData?.billingInfo?.current_plan || userData?.profile?.subscription_tier || "starter";
   const usageLimit = useUsageLimit("followup");
 
   const handleGenerate = async () => {
@@ -57,9 +41,7 @@ export const FollowUpGenerator = () => {
     }
 
     if (!usageLimit.canIncrement) {
-      toast.error(
-        "You have reached your monthly follow-up limit for your plan."
-      );
+      toast.error("You have reached your monthly follow-up limit for your plan.");
       return;
     }
 
@@ -76,35 +58,29 @@ export const FollowUpGenerator = () => {
     }
 
     try {
-      const { data: json, error } = await supabase.functions.invoke(
-        "generate-ai-content",
-        {
-          body: {
-            type: "followup",
-            formInputs: {
-              clientName,
-              projectTitle,
-              lastContact,
-              followUpReason,
-              tone,
-              urgency,
-              timestamp: Date.now(),
-              randomSeed: Math.random().toString(36).substring(7),
-            },
-            plan: subscriptionTier === "pro" ? "pro" : "starter",
-            user_id: userData?.profile?.id,
-            prefer_gpt4o: false,
+      const { data: json, error } = await supabase.functions.invoke("generate-ai-content", {
+        body: {
+          type: "followup",
+          formInputs: {
+            clientName,
+            projectTitle,
+            lastContact,
+            followUpReason,
+            tone,
+            urgency,
+            timestamp: Date.now(),
+            randomSeed: Math.random().toString(36).substring(7),
           },
-        }
-      );
+          plan: subscriptionTier === "pro" ? "pro" : "starter",
+          user_id: userData?.profile?.id,
+          prefer_gpt4o: false,
+        },
+      });
 
       if (error) throw new Error(error.message || "AI generation error");
       if (!json) throw new Error("Empty AI response");
 
-      const followUpText =
-        typeof json === "object" && (json.content || json.raw_content)
-          ? json.content || json.raw_content
-          : "";
+      const followUpText = typeof json === "object" && (json.content || json.raw_content) ? json.content || json.raw_content : "";
 
       setGeneratedFollowUp(followUpText);
       setUsedTokens(json.tokens_used ?? null);
@@ -137,78 +113,74 @@ export const FollowUpGenerator = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            AI Follow-Up Generator
-          </h1>
-          <p className="text-gray-600">
-            Generate effective client follow-ups with AI
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Smart Follow-Up Generator</h1>
+          <p className="text-muted-foreground mt-1">Generate effective client follow-ups with AI</p>
         </div>
-        <Badge variant="outline" className="text-blue-600 border-blue-200">
-          {usageLimit.isLoading
-            ? "Loading..."
-            : `${usageLimit.current ?? 0}/${usageLimit.limit ?? 0} follow-ups used this month`}
+        <Badge variant="secondary" className="text-sm font-medium">
+          {usageLimit.isLoading ? "Loading..." : `${usageLimit.current ?? 0}/${usageLimit.limit ?? 0} used`}
         </Badge>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Input Form */}
-        <Card>
+        <Card className="h-fit">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <FileText className="w-5 h-5 mr-2" />
+            <CardTitle className="flex items-center text-lg">
+              <MessageSquare className="w-5 h-5 mr-2 text-primary" />
               Follow-Up Details
             </CardTitle>
-            <CardDescription>
-              Provide information about the client and reason for follow-up
-            </CardDescription>
+            <CardDescription>Provide information about the client and reason for follow-up</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="client-name">Client Name</Label>
+            <div className="space-y-2">
+              <Label htmlFor="client-name" className="text-sm font-medium">Client Name *</Label>
               <Input
                 id="client-name"
                 placeholder="e.g., Sanket"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
+                className="h-11"
               />
             </div>
-            <div>
-              <Label htmlFor="project-title">Project / Proposal</Label>
+            <div className="space-y-2">
+              <Label htmlFor="project-title" className="text-sm font-medium">Project / Proposal *</Label>
               <Input
                 id="project-title"
                 placeholder="e.g., Website Redesign"
                 value={projectTitle}
                 onChange={(e) => setProjectTitle(e.target.value)}
+                className="h-11"
               />
             </div>
-            <div>
-              <Label htmlFor="last-contact">Last Contact</Label>
+            <div className="space-y-2">
+              <Label htmlFor="last-contact" className="text-sm font-medium">Last Contact *</Label>
               <Input
                 id="last-contact"
                 placeholder="e.g., 1 week ago"
                 value={lastContact}
                 onChange={(e) => setLastContact(e.target.value)}
+                className="h-11"
               />
             </div>
-            <div>
-              <Label htmlFor="followup-reason">Reason for Follow-Up</Label>
+            <div className="space-y-2">
+              <Label htmlFor="followup-reason" className="text-sm font-medium">Reason for Follow-Up *</Label>
               <Textarea
                 id="followup-reason"
-                placeholder="e.g., Payment update"
+                placeholder="e.g., Payment update, project status check, etc."
                 value={followUpReason}
                 onChange={(e) => setFollowUpReason(e.target.value)}
-                rows={2}
+                rows={3}
+                className="resize-none"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="tone">Tone</Label>
+              <div className="space-y-2">
+                <Label htmlFor="tone" className="text-sm font-medium">Tone</Label>
                 <Select value={tone} onValueChange={setTone}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -218,10 +190,10 @@ export const FollowUpGenerator = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="urgency">Urgency</Label>
+              <div className="space-y-2">
+                <Label htmlFor="urgency" className="text-sm font-medium">Urgency</Label>
                 <Select value={urgency} onValueChange={setUrgency}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -232,19 +204,15 @@ export const FollowUpGenerator = () => {
                 </Select>
               </div>
             </div>
-            <Button
-              onClick={handleGenerate}
-              className="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
-              disabled={isGenerating}
-            >
+            <Button onClick={handleGenerate} className="w-full h-11 text-base font-medium" disabled={isGenerating} size="lg">
               {isGenerating ? (
                 <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
                   Generating...
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4 mr-2" />
+                  <Sparkles className="w-5 h-5 mr-2" />
                   Generate Follow-Up
                 </>
               )}
@@ -253,52 +221,37 @@ export const FollowUpGenerator = () => {
         </Card>
 
         {/* Generated Follow-Up */}
-        <Card>
+        <Card className="h-fit">
           <CardHeader>
-            <CardTitle>Generated Follow-Up</CardTitle>
-            <CardDescription>
-              AI-crafted follow-up ready to send
-              {/* {aiModel && (
-                <span className="ml-2 bg-slate-100 px-2 py-1 rounded text-xs text-slate-600">
-                  Model: {aiModel} | Tokens: {usedTokens ?? "?"}
-                </span>
-              )} */}
-            </CardDescription>
+            <CardTitle className="text-lg">Generated Follow-Up</CardTitle>
+            <CardDescription>AI-crafted follow-up ready to send</CardDescription>
           </CardHeader>
           <CardContent>
             {generatedFollowUp ? (
               <div className="space-y-4">
-                <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
-                  <div className="prose max-w-none text-gray-800">
+                <div className="bg-muted/50 p-4 rounded-lg max-h-96 overflow-y-auto border">
+                  <div className="prose prose-sm max-w-none text-foreground">
                     <ReactMarkdown>{generatedFollowUp}</ReactMarkdown>
                   </div>
                 </div>
-                <div className="flex space-x-2">
-                  <Button
-                    onClick={handleCopy}
-                    variant="outline"
-                    className="flex-1"
-                  >
+                <div className="flex gap-2">
+                  <Button onClick={handleCopy} variant="outline" className="flex-1 h-11 font-medium">
                     <Copy className="w-4 h-4 mr-2" />
                     Copy
                   </Button>
-                  <Button
-                    onClick={handleDownload}
-                    variant="outline"
-                    className="flex-1"
-                  >
+                  <Button onClick={handleDownload} variant="outline" className="flex-1 h-11 font-medium">
                     <Download className="w-4 h-4 mr-2" />
                     Download
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-12 text-gray-500">
-                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>Your generated follow-up will appear here</p>
-                <p className="text-sm">
-                  Fill in the details and click "Generate Follow-Up"
-                </p>
+              <div className="text-center py-16 text-muted-foreground">
+                <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <MessageSquare className="w-8 h-8 text-muted-foreground/50" />
+                </div>
+                <p className="font-medium">Your generated follow-up will appear here</p>
+                <p className="text-sm mt-1">Fill in the details and click "Generate Follow-Up"</p>
               </div>
             )}
           </CardContent>

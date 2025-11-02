@@ -1,10 +1,13 @@
-
 import React from "react";
-import { Brain } from "lucide-react";
+import { Brain, ArrowLeft } from "lucide-react";
 import { useSettingsPage } from "@/hooks/useSettingsPage";
 import { SettingsHeader } from "@/components/settings/SettingsHeader";
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { useSubscription } from "@/hooks/useSubscription";
+import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 const Settings = () => {
   const {
@@ -28,21 +31,17 @@ const Settings = () => {
 
   if (isLoading || subLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 flex items-center justify-center">
-        <div className="text-center animate-fade-in">
-          <div className="relative w-16 h-16 mx-auto mb-6">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-2xl opacity-20 blur-xl animate-pulse"></div>
-            <div className="relative w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-              <Brain className="w-8 h-8 text-white animate-pulse" />
-            </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Brain className="w-8 h-8 text-primary" />
           </div>
-          <p className="text-slate-600 font-medium">Loading your settings...</p>
+          <p className="text-muted-foreground">Loading settings...</p>
         </div>
       </div>
     );
   }
 
-  // Use subscription data from the new useSubscription hook
   const plan = subscription?.current_plan || "starter";
   const status = subscription?.subscription_status || "inactive";
   const expires = subscription?.current_period_end 
@@ -50,35 +49,52 @@ const Settings = () => {
     : "N/A";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
+    <div className="min-h-screen bg-background">
       <SettingsHeader currentPlan={plan} />
-      <div className="container mx-auto px-6 py-8 max-w-4xl">
-        <div className="mb-8">
-          <h3 className="font-bold text-xl mb-2">Your Subscription</h3>
-          <div className="flex items-center gap-6">
-            <span className={`px-3 py-1 rounded-full text-white font-semibold ${
-              plan === "pro"
-                ? "bg-gradient-to-r from-purple-500 to-pink-500"
-                : plan === "basic"
-                ? "bg-gradient-to-r from-blue-500 to-green-500"
-                : "bg-gradient-to-r from-gray-500 to-slate-500"
-            }`}>
-              {plan === "pro" ? "Pro Plan" : plan === "basic" ? "Basic Plan" : "Starter Plan"}
-            </span>
-            <span className={`px-2 py-1 text-xs rounded ${
-              status === "active" 
-                ? "bg-green-100 text-green-600" 
-                : "bg-gray-100 text-gray-600"
-            }`}>
-              Status: {status}
-            </span>
-            {subscription?.current_period_end && (
-              <span className="text-sm text-gray-600">
-                Expires: {expires}
-              </span>
-            )}
-          </div>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-4xl">
+        <div className="mb-6">
+          <Link to="/">
+            <Button variant="ghost" size="sm" className="mb-4">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          </Link>
         </div>
+
+        <Card className="mb-8">
+          <CardContent className="p-6">
+            <h3 className="font-semibold text-lg mb-4">Subscription Status</h3>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <Badge
+                variant="secondary"
+                className={`text-sm font-medium px-4 py-2 ${
+                  plan === "pro"
+                    ? "bg-primary/10 text-primary"
+                    : plan === "basic"
+                    ? "bg-blue-500/10 text-blue-600"
+                    : "bg-muted"
+                }`}
+              >
+                {plan === "pro" ? "Pro Plan" : plan === "basic" ? "Basic Plan" : "Starter Plan"}
+              </Badge>
+              <Badge
+                variant="outline"
+                className={`text-xs ${
+                  status === "active"
+                    ? "border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
+                    : "border-muted-foreground/30"
+                }`}
+              >
+                {status === "active" ? "✓ Active" : "Inactive"}
+              </Badge>
+              {subscription?.current_period_end && (
+                <span className="text-sm text-muted-foreground">
+                  Renews: {expires}
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <SettingsTabs
           user={user}

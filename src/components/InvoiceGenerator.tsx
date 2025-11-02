@@ -14,8 +14,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { PDFInvoiceDownload } from "./PDFInvoice";
-import { PDFDownloadLink, pdf as pdfInstance } from "@react-pdf/renderer";
+import { pdf as pdfInstance } from "@react-pdf/renderer";
 import { uploadInvoicePdf } from "@/utils/uploadInvoicePdf";
+import { Badge } from "@/components/ui/badge";
 
 interface InvoiceItem {
   description: string;
@@ -38,22 +39,15 @@ export const InvoiceGenerator = () => {
     { description: "", quantity: 1, rate: 0, amount: 0 }
   ]);
   const [notes, setNotes] = useState("");
-
-  // Payment Status at creation
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>("unpaid");
-
-  // PDF download state
   const [showDownload, setShowDownload] = useState(false);
   const [cachedPdfData, setCachedPdfData] = useState<any>(null);
-
-  // For error/success messages
   const [dateError, setDateError] = useState<string | null>(null);
   const [futureWarn, setFutureWarn] = useState<string | null>(null);
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
 
-  // For recent invoices update
   const queryClient = useQueryClient();
 
-  // Fetch recent invoices
   const { data: recentInvoices, isLoading } = useQuery({
     queryKey: ['recentInvoices', user?.id],
     queryFn: async () => {
@@ -70,7 +64,6 @@ export const InvoiceGenerator = () => {
     enabled: !!user?.id,
   });
 
-  // Mutation for marking invoice as paid/unpaid
   const updateInvoiceStatus = useMutation({
     mutationFn: async ({ id, status, payment_status }: { id: string; status?: string; payment_status?: string }) => {
       const { error } = await supabase
@@ -109,12 +102,7 @@ export const InvoiceGenerator = () => {
   const calculateGST = () => isGSTEnabled ? calculateSubtotal() * 0.18 : 0;
   const calculateTotal = () => calculateSubtotal() + calculateGST();
 
-  //--- Status calculation logic as per spec ----
-  const computeStatus = ({
-    issueDate,
-    dueDate,
-    paymentStatus,
-  }: { issueDate: string; dueDate: string; paymentStatus: string; }) => {
+  const computeStatus = ({ issueDate, dueDate, paymentStatus }: { issueDate: string; dueDate: string; paymentStatus: string; }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const issue = issueDate ? new Date(issueDate) : null;
@@ -122,19 +110,12 @@ export const InvoiceGenerator = () => {
     if (issue) issue.setHours(0, 0, 0, 0);
     if (due) due.setHours(0, 0, 0, 0);
 
-    if (paymentStatus === "paid") {
-      return "PAID";
-    }
-    if (issue && issue > today) {
-      return "SCHEDULED";
-    }
-    if (due && due < today) {
-      return "OVERDUE";
-    }
+    if (paymentStatus === "paid") return "PAID";
+    if (issue && issue > today) return "SCHEDULED";
+    if (due && due < today) return "OVERDUE";
     return "PENDING";
   };
 
-  // Validate dates whenever inputs change
   const validateDates = () => {
     setDateError(null);
     setFutureWarn(null);
@@ -148,22 +129,21 @@ export const InvoiceGenerator = () => {
     }
   };
 
-  // Re-validate dates on changes
   React.useEffect(() => {
     validateDates();
   }, [issueDate, dueDate]);
 
-  // UX: get badge color and friendly text for status
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PAID": return <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold text-xs">Paid</span>;
-      case "PENDING": return <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold text-xs">Pending</span>;
-      case "OVERDUE": return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full font-semibold text-xs">Overdue</span>;
-      case "SCHEDULED": return <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full font-semibold text-xs">Scheduled</span>;
-      default: return <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full font-semibold text-xs">{status}</span>;
-    }
+    const variants: Record<string, string> = {
+      PAID: "bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900",
+      PENDING: "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900",
+      OVERDUE: "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900",
+      SCHEDULED: "bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900",
+    };
+    const className = variants[status] || "bg-muted text-muted-foreground";
+    return <Badge variant="outline" className={`${className} text-xs font-medium px-2 py-1`}>{status}</Badge>;
   };
-  // Time calculations UX
+
   const getDueText = (dueDate: string, status: string) => {
     if (!dueDate) return "";
     const today = new Date();
@@ -183,7 +163,6 @@ export const InvoiceGenerator = () => {
     return "";
   };
 
-  // Helper to shape invoice data for PDFInvoiceDownload
   const getInvoicePdfData = () => {
     const freelancerName = user?.user_metadata?.name || user?.email?.split('@')[0] || "Freelancer";
     const freelancerEmail = user?.email || "";
@@ -206,20 +185,13 @@ export const InvoiceGenerator = () => {
     };
   };
 
-  // Add isUploadingPdf state for UX
-  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
-
-  // -- Helper to generate PDF blob using the same InvoiceData as PDFInvoiceDownload (exporting below)
   async function generateInvoicePdfBlob(data: any): Promise<Blob> {
     const { InvoicePDF } = await import("./PDFInvoice");
-    // Create a React-pdf Document instance and render to Blob
-    // This is a trick with @react-pdf/renderer to generate PDF blob from a Document component
     const pdfDoc = pdfInstance(<InvoicePDF data={data} />);
     const blob = await pdfDoc.toBlob();
     return blob;
   }
 
-  // --- OVERWRITE: handleGenerateInvoice now stores PDF in Supabase and pdf_url in invoices
   const handleGenerateInvoice = async () => {
     if (!clientName || items.some(item => !item.description)) {
       toast.error("Please fill in client details and item descriptions");
@@ -234,19 +206,13 @@ export const InvoiceGenerator = () => {
       return;
     }
     const status = computeStatus({ issueDate, dueDate, paymentStatus });
-
-    // Prepare PDF data
     const pdfData = getInvoicePdfData();
 
     setIsUploadingPdf(true);
     try {
-      // 1. Generate PDF Blob:
       const pdfBlob = await generateInvoicePdfBlob(pdfData);
-
-      // 2. Upload to Supabase Storage:
       const pdfUrl = await uploadInvoicePdf(invoiceNumber, pdfBlob);
 
-      // 3. Insert invoice record in Supabase (with pdf_url)
       const { error } = await supabase
         .from('invoices')
         .insert({
@@ -273,67 +239,64 @@ export const InvoiceGenerator = () => {
     }
   };
 
-  // Mark invoice as paid/unpaid from UI
   const handleMarkPaid = (invoice: any, newPaid: boolean) => {
     const payment_status = newPaid ? "paid" : "unpaid";
-    const status = newPaid
-      ? "PAID"
-      : computeStatus({ issueDate: invoice.issued_on, dueDate: invoice.due_date || "", paymentStatus: "unpaid" });
+    const status = newPaid ? "PAID" : computeStatus({ issueDate: invoice.issued_on, dueDate: invoice.due_date || "", paymentStatus: "unpaid" });
     updateInvoiceStatus.mutate({ id: invoice.id, payment_status, status });
   };
 
-  // Show warning if user tries to create impossible dates
   const handleDueDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDueDate(e.target.value);
-    // Trigger validation in useEffect
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Invoice Generator</h1>
-          <p className="text-gray-600">Create professional invoices with GST compliance</p>
-        </div>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Invoice Generator</h1>
+        <p className="text-muted-foreground mt-1">Create professional invoices with GST compliance</p>
       </div>
+
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Invoice Form */}
         <div className="lg:col-span-2 space-y-6">
           {/* Client Information */}
           <Card>
             <CardHeader>
-              <CardTitle>Client Information</CardTitle>
+              <CardTitle className="text-lg">Client Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="client-name">Client Name/Company</Label>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="client-name" className="text-sm font-medium">Client Name/Company *</Label>
                   <Input
                     id="client-name"
                     placeholder="Enter client name"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
+                    className="h-11"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="client-email">Email Address</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="client-email" className="text-sm font-medium">Email Address</Label>
                   <Input
                     id="client-email"
                     type="email"
                     placeholder="client@example.com"
                     value={clientEmail}
                     onChange={(e) => setClientEmail(e.target.value)}
+                    className="h-11"
                   />
                 </div>
               </div>
-              <div>
-                <Label htmlFor="client-address">Billing Address</Label>
+              <div className="space-y-2">
+                <Label htmlFor="client-address" className="text-sm font-medium">Billing Address</Label>
                 <Textarea
                   id="client-address"
                   placeholder="Enter complete billing address"
                   value={clientAddress}
                   onChange={(e) => setClientAddress(e.target.value)}
                   rows={3}
+                  className="resize-none"
                 />
               </div>
             </CardContent>
@@ -342,70 +305,74 @@ export const InvoiceGenerator = () => {
           {/* Invoice Details */}
           <Card>
             <CardHeader>
-              <CardTitle>Invoice Details</CardTitle>
+              <CardTitle className="text-lg">Invoice Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="invoice-number">Invoice Number</Label>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="invoice-number" className="text-sm font-medium">Invoice Number</Label>
                   <Input
                     id="invoice-number"
                     value={invoiceNumber}
                     onChange={(e) => setInvoiceNumber(e.target.value)}
+                    className="h-11"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="issue-date">Issue Date</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="issue-date" className="text-sm font-medium">Issue Date</Label>
                   <Input
                     id="issue-date"
                     type="date"
                     value={issueDate}
                     onChange={(e) => setIssueDate(e.target.value)}
+                    className="h-11"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="due-date">Due Date</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="due-date" className="text-sm font-medium">Due Date</Label>
                   <Input
                     id="due-date"
                     type="date"
                     value={dueDate}
                     onChange={handleDueDateChange}
+                    className="h-11"
                   />
                 </div>
               </div>
               {dateError && (
-                <div className="text-red-600 text-xs font-medium pt-1">{dateError}</div>
+                <div className="text-rose-600 text-xs font-medium">{dateError}</div>
               )}
               {futureWarn && (
-                <div className="text-yellow-700 text-xs font-medium pt-1">{futureWarn}</div>
+                <div className="text-amber-600 text-xs font-medium">{futureWarn}</div>
               )}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-3 pt-2">
                 <Switch
                   id="gst-enabled"
                   checked={isGSTEnabled}
                   onCheckedChange={setIsGSTEnabled}
                 />
-                <Label htmlFor="gst-enabled">Enable GST (18%)</Label>
+                <Label htmlFor="gst-enabled" className="text-sm font-medium cursor-pointer">Enable GST (18%)</Label>
               </div>
               {isGSTEnabled && (
-                <div>
-                  <Label htmlFor="gst-number">GST Number</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="gst-number" className="text-sm font-medium">GST Number</Label>
                   <Input
                     id="gst-number"
                     placeholder="Enter your GST number"
                     value={gstNumber}
                     onChange={(e) => setGstNumber(e.target.value)}
+                    className="h-11"
                   />
                 </div>
               )}
-              <div className="flex items-center space-x-2 pt-2">
+              <div className="flex items-center space-x-3 pt-2">
                 <Switch
                   id="paid-status"
                   checked={paymentStatus === "paid"}
                   onCheckedChange={(v) => setPaymentStatus(v ? "paid" : "unpaid")}
                 />
-                <Label htmlFor="paid-status">
-                  Mark as <span className={paymentStatus === "paid" ? "text-green-600 font-bold" : "text-yellow-600 font-bold"}>{paymentStatus === "paid" ? "Paid" : "Unpaid"}</span> on creation
+                <Label htmlFor="paid-status" className="text-sm font-medium cursor-pointer">
+                  Mark as <span className={paymentStatus === "paid" ? "text-emerald-600 font-semibold" : "text-amber-600 font-semibold"}>{paymentStatus === "paid" ? "Paid" : "Unpaid"}</span>
                 </Label>
               </div>
             </CardContent>
@@ -414,59 +381,63 @@ export const InvoiceGenerator = () => {
           {/* Items */}
           <Card>
             <CardHeader>
-              <CardTitle>Invoice Items</CardTitle>
+              <CardTitle className="text-lg">Invoice Items</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {items.map((item, index) => (
                 <div key={index} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-5">
-                    <Label>Description</Label>
+                  <div className="col-span-12 sm:col-span-5">
+                    <Label className="text-sm font-medium">Description</Label>
                     <Input
                       placeholder="Service description"
                       value={item.description}
                       onChange={(e) => updateItem(index, 'description', e.target.value)}
+                      className="h-10"
                     />
                   </div>
-                  <div className="col-span-2">
-                    <Label>Qty</Label>
+                  <div className="col-span-4 sm:col-span-2">
+                    <Label className="text-sm font-medium">Qty</Label>
                     <Input
                       type="number"
                       placeholder="1"
                       value={item.quantity}
                       onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                      className="h-10"
                     />
                   </div>
-                  <div className="col-span-2">
-                    <Label>Rate</Label>
+                  <div className="col-span-4 sm:col-span-2">
+                    <Label className="text-sm font-medium">Rate</Label>
                     <Input
                       type="number"
                       placeholder="0"
                       value={item.rate}
                       onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
+                      className="h-10"
                     />
                   </div>
-                  <div className="col-span-2">
-                    <Label>Amount</Label>
+                  <div className="col-span-3 sm:col-span-2">
+                    <Label className="text-sm font-medium">Amount</Label>
                     <Input
                       value={`₹${item.amount.toFixed(2)}`}
                       readOnly
-                      className="bg-gray-50"
+                      className="h-10 bg-muted"
                     />
                   </div>
                   <div className="col-span-1">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={() => removeItem(index)}
                       disabled={items.length === 1}
+                      className="h-10"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 text-rose-500" />
                     </Button>
                   </div>
                 </div>
               ))}
               
-              <Button onClick={addItem} variant="outline" className="w-full">
+              <Button onClick={addItem} variant="outline" className="w-full h-10 font-medium">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Item
               </Button>
@@ -476,7 +447,7 @@ export const InvoiceGenerator = () => {
           {/* Notes */}
           <Card>
             <CardHeader>
-              <CardTitle>Additional Notes</CardTitle>
+              <CardTitle className="text-lg">Additional Notes</CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea
@@ -484,6 +455,7 @@ export const InvoiceGenerator = () => {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
+                className="resize-none"
               />
             </CardContent>
           </Card>
@@ -493,80 +465,72 @@ export const InvoiceGenerator = () => {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Receipt className="w-5 h-5 mr-2" />
-                Invoice Summary
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center text-lg">
+                  <Receipt className="w-5 h-5 mr-2 text-primary" />
+                  Invoice Summary
+                </CardTitle>
                 {getStatusBadge(computeStatus({ issueDate, dueDate, paymentStatus }))}
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>₹{calculateSubtotal().toFixed(2)}</span>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span className="font-medium">₹{calculateSubtotal().toFixed(2)}</span>
                 </div>
                 {isGSTEnabled && (
-                  <div className="flex justify-between">
-                    <span>GST (18%):</span>
-                    <span>₹{calculateGST().toFixed(2)}</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">GST (18%):</span>
+                    <span className="font-medium">₹{calculateGST().toFixed(2)}</span>
                   </div>
                 )}
                 <Separator />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total:</span>
-                  <span>₹{calculateTotal().toFixed(2)}</span>
+                  <span className="text-primary">₹{calculateTotal().toFixed(2)}</span>
                 </div>
               </div>
 
-              {/* Next actions */}
-              <div className="space-y-2">
+              <div className="space-y-2 pt-2">
                 <Button 
                   onClick={handleGenerateInvoice}
-                  className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
-                  disabled={!!dateError}
+                  className="w-full h-11 text-base font-medium"
+                  disabled={!!dateError || isUploadingPdf}
+                  size="lg"
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  Generate PDF
+                  <Download className="w-5 h-5 mr-2" />
+                  {isUploadingPdf ? "Generating..." : "Generate PDF"}
                 </Button>
                 {showDownload && cachedPdfData && (
-                  <div className="mt-2 flex">
+                  <div className="flex">
                     <PDFInvoiceDownload
                       data={cachedPdfData}
                       fileName={`${cachedPdfData.invoiceNumber}.pdf`}
                     />
                   </div>
                 )}
-                <Button 
-                  onClick={() => toast.info("Email sending coming soon!")}
-                  variant="outline" 
-                  className="w-full"
-                  disabled
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Send to Client
-                </Button>
               </div>
 
-              {/* Status + Due info */}
-              <div className="pt-2">
-                <div className="text-sm text-gray-600">
+              {dueDate && (
+                <div className="text-sm text-muted-foreground text-center pt-2">
                   {getDueText(dueDate, computeStatus({ issueDate, dueDate, paymentStatus }))}
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
+
           {/* Recent Invoices */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Invoices</CardTitle>
+              <CardTitle className="text-lg">Recent Invoices</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : recentInvoices && recentInvoices.length > 0 ? (
-                // --- Updated Layout: show download button!
                 <div className="space-y-3">
                   {recentInvoices.map((invoice: any) => {
                     const status = computeStatus({
@@ -575,60 +539,63 @@ export const InvoiceGenerator = () => {
                       paymentStatus: invoice.payment_status,
                     });
                     return (
-                      <div key={invoice.id} className="flex flex-wrap md:flex-nowrap justify-between items-center p-3 bg-gray-50 rounded-lg gap-y-4 gap-x-2">
-                        <div className="w-full flex-1 min-w-[140px]">
-                          <p className="font-medium text-sm">{invoice.invoice_number}</p>
-                          <p className="text-xs text-gray-600">{invoice.client_name}</p>
-                          <p className="text-xs text-gray-500">
-                            {invoice.issued_on ? format(new Date(invoice.issued_on), 'MMM dd, yyyy') : 'No date'}
-                          </p>
-                        </div>
-                        <div className="flex flex-col justify-center items-end min-w-[110px] gap-1">
-                          <p className="font-medium text-sm">₹{Number(invoice.total_amount).toLocaleString()}</p>
-                          <div className="flex items-center gap-2">
+                      <div key={invoice.id} className="p-3 bg-muted/50 rounded-lg border space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <p className="font-medium text-sm">{invoice.invoice_number}</p>
+                            <p className="text-xs text-muted-foreground">{invoice.client_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {invoice.issued_on ? format(new Date(invoice.issued_on), 'MMM dd, yyyy') : 'No date'}
+                            </p>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <p className="font-semibold text-sm">₹{Number(invoice.total_amount).toLocaleString()}</p>
                             {getStatusBadge(status)}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="flex items-center gap-2">
                             <Switch
                               id={`paid-switch-${invoice.id}`}
                               checked={invoice.payment_status === "paid"}
                               onCheckedChange={(v) => handleMarkPaid(invoice, v)}
-                              aria-label="Mark as Paid"
                             />
+                            <Label htmlFor={`paid-switch-${invoice.id}`} className="text-xs cursor-pointer">
+                              {invoice.payment_status === "paid" ? "Paid" : "Mark as Paid"}
+                            </Label>
                           </div>
-                          <p className="text-xs text-gray-500">
-                            {getDueText(invoice.due_date || "", status)}
-                          </p>
-                        </div>
-                        {/* --- Download button for stored PDF --- */}
-                        <div className="min-w-[40px] flex-shrink-0 flex items-center">
-                          {invoice.pdf_url ? (
+                          {invoice.pdf_url && (
                             <a
                               href={invoice.pdf_url}
                               download
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex flex-col items-center"
-                              aria-label="Download Invoice PDF"
+                              className="text-primary hover:text-primary/80 transition-colors"
                             >
-                              <Download className="w-5 h-5 text-blue-500 hover:text-blue-700 transition-colors" />
-                              <span className="sr-only">Download PDF</span>
+                              <Download className="w-4 h-4" />
                             </a>
-                          ) : (
-                            <span className="text-xs text-slate-400 italic">No PDF</span>
                           )}
                         </div>
+                        {invoice.due_date && (
+                          <p className="text-xs text-muted-foreground">
+                            {getDueText(invoice.due_date, status)}
+                          </p>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <FileText className="w-12 h-12 text-gray-300 mb-3" />
-                  <h3 className="font-medium text-gray-900 mb-1">No invoices yet</h3>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Start by creating your first invoice above
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-8 h-8 text-muted-foreground/50" />
+                  </div>
+                  <p className="font-medium mb-2">No invoices yet</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Start by creating your first invoice
                   </p>
                   <Button 
-                    variant="outline" 
+                    variant="outline"
                     size="sm"
                     onClick={() => document.getElementById('client-name')?.focus()}
                   >

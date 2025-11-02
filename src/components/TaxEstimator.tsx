@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,7 +29,6 @@ export const TaxEstimator = () => {
     let effectiveRate = 0;
 
     if (taxRegime === "new") {
-      // New Tax Regime (FY 2023-24 rates)
       if (taxableIncome <= 300000) {
         tax = 0;
       } else if (taxableIncome <= 600000) {
@@ -45,7 +43,6 @@ export const TaxEstimator = () => {
         tax = 150000 + (taxableIncome - 1500000) * 0.30;
       }
     } else {
-      // Old Tax Regime
       if (taxableIncome <= 250000) {
         tax = 0;
       } else if (taxableIncome <= 500000) {
@@ -58,8 +55,6 @@ export const TaxEstimator = () => {
     }
 
     effectiveRate = taxableIncome > 0 ? (tax / taxableIncome) * 100 : 0;
-
-    // Add 4% Health and Education Cess
     const cessAmount = tax * 0.04;
     const totalTax = tax + cessAmount;
 
@@ -117,51 +112,51 @@ export const TaxEstimator = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Tax Estimator</h1>
-        <p className="text-gray-600">Calculate your tax liability and get insights for FY {currentFinancialYear || "2025-26"}</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Tax Calculator</h1>
+        <p className="text-muted-foreground mt-1">Calculate your tax liability and get insights for FY {currentFinancialYear || "2025-26"}</p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Calculator */}
-        <Card>
+        <Card className="h-fit">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Calculator className="w-5 h-5 mr-2" />
+            <CardTitle className="flex items-center text-lg">
+              <Calculator className="w-5 h-5 mr-2 text-primary" />
               Tax Calculator
             </CardTitle>
-            <CardDescription>
-              Calculate your estimated tax liability
-            </CardDescription>
+            <CardDescription>Calculate your estimated tax liability</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="income">Annual Gross Income (₹)</Label>
+            <div className="space-y-2">
+              <Label htmlFor="income" className="text-sm font-medium">Annual Gross Income (₹)</Label>
               <Input
                 id="income"
                 type="number"
                 placeholder="e.g., 1200000"
                 value={income}
                 onChange={(e) => setIncome(e.target.value)}
+                className="h-11"
               />
             </div>
 
-            <div>
-              <Label htmlFor="expenses">Business Expenses (₹)</Label>
+            <div className="space-y-2">
+              <Label htmlFor="expenses" className="text-sm font-medium">Business Expenses (₹)</Label>
               <Input
                 id="expenses"
                 type="number"
                 placeholder="e.g., 200000"
                 value={expenses}
                 onChange={(e) => setExpenses(e.target.value)}
+                className="h-11"
               />
             </div>
 
-            <div>
-              <Label htmlFor="tax-regime">Tax Regime</Label>
+            <div className="space-y-2">
+              <Label htmlFor="tax-regime" className="text-sm font-medium">Tax Regime</Label>
               <Select value={taxRegime} onValueChange={setTaxRegime}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -171,54 +166,57 @@ export const TaxEstimator = () => {
               </Select>
             </div>
 
-            <Button onClick={calculateTax} className="w-full">
-              <Calculator className="w-4 h-4 mr-2" />
+            <Button onClick={calculateTax} className="w-full h-11 text-base font-medium" size="lg">
+              <Calculator className="w-5 h-5 mr-2" />
               Calculate Tax
             </Button>
           </CardContent>
         </Card>
 
         {/* Results */}
-        <Card>
+        <Card className="h-fit">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <TrendingUp className="w-5 h-5 mr-2" />
+            <CardTitle className="flex items-center text-lg">
+              <TrendingUp className="w-5 h-5 mr-2 text-primary" />
               Tax Calculation Results
             </CardTitle>
           </CardHeader>
           <CardContent>
             {result ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <p className="text-sm text-blue-600">Gross Income</p>
-                    <p className="text-xl font-bold text-blue-800">₹{result.grossIncome.toLocaleString()}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-900">
+                    <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Gross Income</p>
+                    <p className="text-xl font-bold text-blue-900 dark:text-blue-100">₹{result.grossIncome.toLocaleString()}</p>
                   </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <p className="text-sm text-green-600">Total Expenses</p>
-                    <p className="text-xl font-bold text-green-800">₹{result.totalExpenses.toLocaleString()}</p>
+                  <div className="bg-emerald-50 dark:bg-emerald-950/30 p-4 rounded-lg border border-emerald-200 dark:border-emerald-900">
+                    <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1">Total Expenses</p>
+                    <p className="text-xl font-bold text-emerald-900 dark:text-emerald-100">₹{result.totalExpenses.toLocaleString()}</p>
                   </div>
-                  <div className="bg-yellow-50 p-3 rounded-lg">
-                    <p className="text-sm text-yellow-600">Taxable Income</p>
-                    <p className="text-xl font-bold text-yellow-800">₹{result.taxableIncome.toLocaleString()}</p>
+                  <div className="bg-amber-50 dark:bg-amber-950/30 p-4 rounded-lg border border-amber-200 dark:border-amber-900">
+                    <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">Taxable Income</p>
+                    <p className="text-xl font-bold text-amber-900 dark:text-amber-100">₹{result.taxableIncome.toLocaleString()}</p>
                   </div>
-                  <div className="bg-red-50 p-3 rounded-lg">
-                    <p className="text-sm text-red-600">Total Tax</p>
-                    <p className="text-xl font-bold text-red-800">₹{Math.round(result.tax).toLocaleString()}</p>
+                  <div className="bg-rose-50 dark:bg-rose-950/30 p-4 rounded-lg border border-rose-200 dark:border-rose-900">
+                    <p className="text-xs font-medium text-rose-600 dark:text-rose-400 mb-1">Total Tax</p>
+                    <p className="text-xl font-bold text-rose-900 dark:text-rose-100">₹{Math.round(result.tax).toLocaleString()}</p>
                   </div>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">Effective Tax Rate</p>
-                  <p className="text-2xl font-bold text-gray-800">{result.effectiveRate.toFixed(2)}%</p>
-                  <Badge variant="outline" className="mt-2">
+                <div className="bg-muted/50 p-4 rounded-lg border">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Effective Tax Rate</p>
+                  <p className="text-3xl font-bold text-foreground">{result.effectiveRate.toFixed(2)}%</p>
+                  <Badge variant="secondary" className="mt-2">
                     {result.regime === "new" ? "New Tax Regime" : "Old Tax Regime"}
                   </Badge>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-12 text-gray-500">
-                <Calculator className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>Enter your income details and calculate tax</p>
+              <div className="text-center py-16 text-muted-foreground">
+                <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Calculator className="w-8 h-8 text-muted-foreground/50" />
+                </div>
+                <p className="font-medium">Enter your income details</p>
+                <p className="text-sm mt-1">Fill in the form and calculate your tax</p>
               </div>
             )}
           </CardContent>
@@ -229,35 +227,38 @@ export const TaxEstimator = () => {
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Lightbulb className="w-5 h-5 mr-2" />
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center text-lg">
+                <Lightbulb className="w-5 h-5 mr-2 text-primary" />
                 Tax Tips for FY {currentFinancialYear || "2025-26"}
-              </div>
+              </CardTitle>
               <Button onClick={fetchTaxTips} variant="outline" size="sm" disabled={isLoadingTips}>
                 {isLoadingTips ? "Loading..." : "Refresh"}
               </Button>
-            </CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
             {taxTips.length > 0 ? (
               <div className="space-y-3">
                 {taxTips.map((tip, index) => (
-                  <div key={index} className={`p-3 rounded-lg border-l-4 ${
-                    tip.type === 'success' ? 'bg-green-50 border-green-400' :
-                    tip.type === 'warning' ? 'bg-yellow-50 border-yellow-400' :
-                    tip.type === 'error' ? 'bg-red-50 border-red-400' :
-                    'bg-blue-50 border-blue-400'
-                  }`}>
-                    <h4 className="font-semibold text-gray-800">{tip.title}</h4>
-                    <p className="text-sm text-gray-600 mt-1">{tip.description}</p>
+                  <div
+                    key={index}
+                    className={`p-4 rounded-lg border-l-4 ${
+                      tip.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500' :
+                      tip.type === 'warning' ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-500' :
+                      tip.type === 'error' ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-500' :
+                      'bg-blue-50 dark:bg-blue-950/30 border-blue-500'
+                    }`}
+                  >
+                    <h4 className="font-semibold text-sm text-foreground mb-1">{tip.title}</h4>
+                    <p className="text-sm text-muted-foreground">{tip.description}</p>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Lightbulb className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                <p>Click "Refresh" to get current tax tips</p>
+              <div className="text-center py-12 text-muted-foreground">
+                <Lightbulb className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
+                <p className="text-sm">Click "Refresh" to get current tax tips</p>
               </div>
             )}
           </CardContent>
@@ -265,30 +266,30 @@ export const TaxEstimator = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Calendar className="w-5 h-5 mr-2" />
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center text-lg">
+                <Calendar className="w-5 h-5 mr-2 text-primary" />
                 Important Dates FY {currentFinancialYear || "2025-26"}
-              </div>
+              </CardTitle>
               <Button onClick={fetchImportantDates} variant="outline" size="sm" disabled={isLoadingDates}>
                 {isLoadingDates ? "Loading..." : "Refresh"}
               </Button>
-            </CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
             {importantDates.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {importantDates.map((date, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <span className="font-medium text-gray-800">{date.date}</span>
-                    <span className="text-sm text-gray-600">{date.event}</span>
+                  <div key={index} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg border">
+                    <span className="font-medium text-sm text-foreground">{date.date}</span>
+                    <span className="text-sm text-muted-foreground">{date.event}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                <p>Click "Refresh" to get important tax dates</p>
+              <div className="text-center py-12 text-muted-foreground">
+                <Calendar className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
+                <p className="text-sm">Click "Refresh" to get important tax dates</p>
               </div>
             )}
           </CardContent>

@@ -24,8 +24,7 @@ export const ProposalWriter = () => {
   const [usedTokens, setUsedTokens] = useState<number | null>(null);
   const [aiModel, setAiModel] = useState<string | null>(null);
 
-  // Fetch dynamic proposal usage
-  const { data: userData, isLoading: loadingUser } = useUserData();
+  const { data: userData } = useUserData();
   const subscriptionTier = userData?.billingInfo?.current_plan || userData?.profile?.subscription_tier || 'starter';
   const usageLimit = useUsageLimit("proposal");
 
@@ -42,12 +41,6 @@ export const ProposalWriter = () => {
       toast.error("You have reached your monthly proposal limit for your plan.");
       return;
     }
-
-    console.log('🚀 Generating proposal...', {
-      clientName: clientInfo,
-      projectLength: projectDetails.length,
-      forceRegenerate: false
-    });
 
     setIsGenerating(true);
     setUsedTokens(null);
@@ -82,9 +75,7 @@ export const ProposalWriter = () => {
       if (error) throw new Error(error.message || "AI generation error");
       if (!json) throw new Error("Empty AI response");
 
-      // Extract the content directly - it should now be clean text
       const proposalText = json.content || "";
-
       setGeneratedProposal(proposalText);
       setUsedTokens(json.tokens_used ?? null);
       setAiModel(json.model ?? null);
@@ -117,25 +108,25 @@ export const ProposalWriter = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Proposal Writer</h1>
-          <p className="text-gray-600">Generate compelling proposals that win clients</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">AI Proposal Writer</h1>
+          <p className="text-muted-foreground mt-1">Generate compelling proposals that win clients</p>
         </div>
-        <Badge variant="outline" className="text-blue-600 border-blue-200">
+        <Badge variant="secondary" className="text-sm font-medium">
           {usageLimit.isLoading
             ? "Loading..."
-            : `${usageLimit.current ?? 0}/${usageLimit.limit ?? 0} proposals used this month`}
+            : `${usageLimit.current ?? 0}/${usageLimit.limit ?? 0} used`}
         </Badge>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Input Form */}
-        <Card>
+        <Card className="h-fit">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <FileText className="w-5 h-5 mr-2" />
+            <CardTitle className="flex items-center text-lg">
+              <FileText className="w-5 h-5 mr-2 text-primary" />
               Project Details
             </CardTitle>
             <CardDescription>
@@ -143,20 +134,21 @@ export const ProposalWriter = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="client-info">Client/Company Name</Label>
+            <div className="space-y-2">
+              <Label htmlFor="client-info" className="text-sm font-medium">Client/Company Name *</Label>
               <Input
                 id="client-info"
                 placeholder="e.g., Tech Startup XYZ"
                 value={clientInfo}
                 onChange={(e) => setClientInfo(e.target.value)}
+                className="h-11"
               />
             </div>
 
-            <div>
-              <Label htmlFor="project-type">Project Type</Label>
+            <div className="space-y-2">
+              <Label htmlFor="project-type" className="text-sm font-medium">Project Type</Label>
               <Select value={projectType} onValueChange={setProjectType}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11">
                   <SelectValue placeholder="Select project type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -171,42 +163,45 @@ export const ProposalWriter = () => {
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="project-details">Project Requirements</Label>
+            <div className="space-y-2">
+              <Label htmlFor="project-details" className="text-sm font-medium">Project Requirements *</Label>
               <Textarea
                 id="project-details"
                 placeholder="Describe the project requirements, scope, and any specific details..."
                 value={projectDetails}
                 onChange={(e) => setProjectDetails(e.target.value)}
                 rows={4}
+                className="resize-none"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="budget">Budget Range</Label>
+              <div className="space-y-2">
+                <Label htmlFor="budget" className="text-sm font-medium">Budget Range</Label>
                 <Input
                   id="budget"
                   placeholder="e.g., ₹50,000 - ₹75,000"
                   value={budget}
                   onChange={(e) => setBudget(e.target.value)}
+                  className="h-11"
                 />
               </div>
-              <div>
-                <Label htmlFor="timeline">Timeline</Label>
+              <div className="space-y-2">
+                <Label htmlFor="timeline" className="text-sm font-medium">Timeline</Label>
                 <Input
                   id="timeline"
                   placeholder="e.g., 2-3 weeks"
                   value={timeline}
                   onChange={(e) => setTimeline(e.target.value)}
+                  className="h-11"
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="tone">Proposal Tone</Label>
+            <div className="space-y-2">
+              <Label htmlFor="tone" className="text-sm font-medium">Proposal Tone</Label>
               <Select value={tone} onValueChange={setTone}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -220,17 +215,18 @@ export const ProposalWriter = () => {
 
             <Button 
               onClick={handleGenerate} 
-              className="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+              className="w-full h-11 text-base font-medium"
               disabled={isGenerating}
+              size="lg"
             >
               {isGenerating ? (
                 <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
                   Generating...
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4 mr-2" />
+                  <Sparkles className="w-5 h-5 mr-2" />
                   Generate Proposal
                 </>
               )}
@@ -239,13 +235,13 @@ export const ProposalWriter = () => {
         </Card>
 
         {/* Generated Proposal */}
-        <Card>
+        <Card className="h-fit">
           <CardHeader>
-            <CardTitle>Generated Proposal</CardTitle>
+            <CardTitle className="text-lg">Generated Proposal</CardTitle>
             <CardDescription>
               AI-crafted proposal ready to send
               {aiModel && (
-                <span className="ml-2 bg-slate-100 px-2 py-1 rounded text-xs text-slate-600">
+                <span className="ml-2 text-xs">
                   Model: {aiModel} | Tokens: {usedTokens ?? "?"}
                 </span>
               )}
@@ -254,27 +250,29 @@ export const ProposalWriter = () => {
           <CardContent>
             {generatedProposal ? (
               <div className="space-y-4">
-                <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
-                  <pre className="whitespace-pre-wrap text-sm text-gray-800 font-sans">
+                <div className="bg-muted/50 p-4 rounded-lg max-h-96 overflow-y-auto border">
+                  <pre className="whitespace-pre-wrap text-sm text-foreground font-sans leading-relaxed">
                     {generatedProposal}
                   </pre>
                 </div>
-                <div className="flex space-x-2">
-                  <Button onClick={handleCopy} variant="outline" className="flex-1">
+                <div className="flex gap-2">
+                  <Button onClick={handleCopy} variant="outline" className="flex-1 h-11 font-medium">
                     <Copy className="w-4 h-4 mr-2" />
                     Copy
                   </Button>
-                  <Button onClick={handleDownload} variant="outline" className="flex-1">
+                  <Button onClick={handleDownload} variant="outline" className="flex-1 h-11 font-medium">
                     <Download className="w-4 h-4 mr-2" />
                     Download
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-12 text-gray-500">
-                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>Your generated proposal will appear here</p>
-                <p className="text-sm">Fill in the details and click "Generate Proposal"</p>
+              <div className="text-center py-16 text-muted-foreground">
+                <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <FileText className="w-8 h-8 text-muted-foreground/50" />
+                </div>
+                <p className="font-medium">Your generated proposal will appear here</p>
+                <p className="text-sm mt-1">Fill in the details and click "Generate Proposal"</p>
               </div>
             )}
           </CardContent>
