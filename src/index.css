@@ -5,108 +5,102 @@
 
 @layer base {
   :root {
-    /* Calm Productivity Design System */
+    /* Modern Professional Design System */
     
-    /* Neutral Palette (60%) - Foundation */
-    --background: 45 25% 97%; /* #F8F8F7 - Warm off-white */
-    --foreground: 0 0% 13%; /* #212121 - Main body text */
+    /* Neutral Foundation */
+    --background: 0 0% 98%;
+    --foreground: 222 47% 11%;
     
-    --card: 0 0% 100%; /* #FFFFFF - Surface default */
-    --card-foreground: 0 0% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
     
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 13%;
+    --popover-foreground: 222 47% 11%;
     
-    /* Brand Colors - Deep muted teal (30%) */
-    --brand-primary: 174 100% 24%; /* #00796B */
-    --brand-primary-light: 174 61% 41%; /* #26A69A - Hover states */
-    --primary: 174 100% 24%; /* Using brand-primary for compatibility */
+    /* Brand Colors - Modern Blue/Purple */
+    --primary: 250 95% 63%;
     --primary-foreground: 0 0% 100%;
+    --primary-light: 250 95% 70%;
     
-    /* Action Colors - Warm coral (10%) */
-    --action-primary: 14 100% 63%; /* #FF7043 */
-    --action-primary-hover: 14 91% 71%; /* #FF8A65 */
+    /* Accent Colors */
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 222 47% 11%;
     
-    --secondary: 0 0% 100%; /* Clean white for secondary elements */
-    --secondary-foreground: 0 0% 13%;
+    --accent: 250 95% 96%;
+    --accent-foreground: 250 95% 40%;
     
-    --muted: 0 0% 96%; /* Light gray for subtle backgrounds */
-    --muted-foreground: 0 0% 38%; /* #616161 - Sub-headlines, muted text */
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
     
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 13%;
-    
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     
-    /* Borders and inputs */
-    --border: 0 0% 88%; /* #E0E0E0 - Standard borders */
-    --input: 0 0% 88%;
-    --ring: 174 100% 24%; /* Brand primary for focus rings */
+    /* Success/Info Colors */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --warning: 38 92% 50%;
     
-    --radius: 0.5rem;
+    /* Borders */
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 250 95% 63%;
     
-    /* Text hierarchy tokens */
-    --text-primary: 0 0% 13%; /* #212121 */
-    --text-secondary: 0 0% 38%; /* #616161 */
+    --radius: 0.75rem;
     
-    /* Sidebar colors (keeping existing for compatibility) */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 250 95% 63%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 5% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 240 6% 90%;
+    --sidebar-ring: 250 95% 63%;
   }
 
   .dark {
-    /* Dark mode - keeping same calm productivity principles */
-    --background: 0 0% 7%; /* Dark background */
+    --background: 222 47% 11%;
     --foreground: 0 0% 98%;
     
-    --card: 0 0% 10%;
+    --card: 222 47% 15%;
     --card-foreground: 0 0% 98%;
     
-    --popover: 0 0% 10%;
+    --popover: 222 47% 15%;
     --popover-foreground: 0 0% 98%;
     
-    --brand-primary: 174 61% 41%; /* Lighter teal for dark mode */
-    --brand-primary-light: 174 100% 24%;
-    --primary: 174 61% 41%;
-    --primary-foreground: 0 0% 7%;
+    --primary: 250 95% 70%;
+    --primary-foreground: 222 47% 11%;
+    --primary-light: 250 95% 75%;
     
-    --action-primary: 14 100% 63%;
-    --action-primary-hover: 14 91% 71%;
-    
-    --secondary: 0 0% 15%;
+    --secondary: 217 33% 17%;
     --secondary-foreground: 0 0% 98%;
     
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 65%;
+    --accent: 250 95% 20%;
+    --accent-foreground: 250 95% 70%;
     
-    --accent: 0 0% 15%;
-    --accent-foreground: 0 0% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 240 5% 65%;
     
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
     
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 174 61% 41%;
+    --success: 142 71% 45%;
+    --info: 199 89% 48%;
+    --warning: 38 92% 50%;
     
-    --text-primary: 0 0% 98%;
-    --text-secondary: 0 0% 65%;
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
+    --ring: 250 95% 70%;
     
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 250 95% 70%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 217 33% 20%;
+    --sidebar-ring: 250 95% 70%;
   }
 }
 
