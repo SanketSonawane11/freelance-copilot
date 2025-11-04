@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Settings = () => {
   const {
@@ -52,13 +53,14 @@ const Settings = () => {
     <div className="min-h-screen bg-background">
       <SettingsHeader currentPlan={plan} />
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-4xl">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <Link to="/">
-            <Button variant="ghost" size="sm" className="mb-4">
+            <Button variant="ghost" size="sm">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Button>
           </Link>
+          <ThemeToggle />
         </div>
 
         <Card className="mb-8">

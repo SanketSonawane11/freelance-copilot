@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { getPlanLimits, getPlanPrice } from "@/utils/planLimits";
 import { useState } from "react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -44,13 +45,14 @@ const Index = () => {
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
+            <nav className="hidden md:flex items-center gap-6">
               <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Features
               </a>
               <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Pricing
               </a>
+              <ThemeToggle />
               <Link to="/auth">
                 <Button size="sm">
                   Get Started
@@ -78,6 +80,10 @@ const Index = () => {
                 <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   Pricing
                 </a>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">Theme</span>
+                  <ThemeToggle />
+                </div>
                 <Link to="/auth">
                   <Button size="sm" className="w-full">
                     Get Started

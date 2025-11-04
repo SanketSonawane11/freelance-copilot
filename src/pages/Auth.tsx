@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { useRazorpaySubscription } from "@/hooks/useRazorpaySubscription";
 import { getPlanLimits, getPlanPrice } from "@/utils/planLimits";
 import AuthDiagnostics from "@/components/AuthDiagnostics";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -130,42 +131,42 @@ const Auth = () => {
     <Card 
       className={`relative cursor-pointer transition-all duration-200 ${
         selectedPlan === plan 
-          ? "ring-2 ring-blue-500 bg-blue-50/50" 
+          ? "ring-2 ring-primary bg-accent" 
           : "hover:shadow-md"
-      } ${popular ? "border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50" : ""}`}
+      } ${popular ? "border-primary" : ""}`}
       onClick={() => setSelectedPlan(plan)}
     >
       {popular && (
         <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-          <span className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
+          <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-semibold">
             Most Popular
           </span>
         </div>
       )}
       <CardHeader className="text-center pb-2">
         <CardTitle className="flex items-center justify-center space-x-2">
-          {plan === "starter" && <Brain className="w-5 h-5 text-gray-600" />}
-          {plan === "basic" && <Sparkles className="w-5 h-5 text-blue-600" />}
-          {plan === "pro" && <Zap className="w-5 h-5 text-purple-600" />}
+          {plan === "starter" && <Brain className="w-5 h-5 text-muted-foreground" />}
+          {plan === "basic" && <Sparkles className="w-5 h-5 text-primary" />}
+          {plan === "pro" && <Zap className="w-5 h-5 text-primary" />}
           <span>{title}</span>
         </CardTitle>
-        <div className="text-2xl font-bold">
+        <div className="text-2xl font-bold text-foreground">
           {price}
-          {plan !== "starter" && <span className="text-sm font-normal text-gray-500">/month</span>}
+          {plan !== "starter" && <span className="text-sm font-normal text-muted-foreground">/month</span>}
         </div>
       </CardHeader>
       <CardContent>
         <ul className="space-y-2">
           {features.map((feature, index) => (
-            <li key={index} className="flex items-center space-x-2 text-sm">
-              <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+            <li key={index} className="flex items-center space-x-2 text-sm text-foreground">
+              <Check className="w-4 h-4 text-primary flex-shrink-0" />
               <span>{feature}</span>
             </li>
           ))}
         </ul>
         {selectedPlan === plan && (
-          <div className="mt-4 p-2 bg-blue-100 rounded-lg text-center">
-            <span className="text-blue-700 font-semibold text-sm">Selected Plan</span>
+          <div className="mt-4 p-2 bg-primary/10 rounded-lg text-center">
+            <span className="text-primary font-semibold text-sm">Selected Plan</span>
           </div>
         )}
       </CardContent>
@@ -173,21 +174,22 @@ const Auth = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      
       <div className="w-full max-w-6xl">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-2xl opacity-20 blur-xl"></div>
-              <div className="relative w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                <Brain className="w-6 h-6 text-white" />
-              </div>
+            <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center">
+              <Brain className="w-6 h-6 text-primary-foreground" />
             </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-foreground">
               Freelancer Copilot
             </h1>
           </div>
-          <p className="text-slate-600 text-lg">Your AI-powered freelancing assistant</p>
+          <p className="text-muted-foreground text-lg">Your AI-powered freelancing assistant</p>
         </div>
 
         <Tabs defaultValue="signin" className="w-full">
@@ -197,7 +199,7 @@ const Auth = () => {
           </TabsList>
 
           <TabsContent value="signin">
-            <Card className="max-w-md mx-auto backdrop-blur-xl bg-white/40 border-white/20 shadow-lg shadow-purple-500/5">
+            <Card className="max-w-md mx-auto">
               <CardHeader>
                 <CardTitle>Welcome Back</CardTitle>
                 <CardDescription>Sign in to your account</CardDescription>
@@ -224,7 +226,7 @@ const Auth = () => {
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                    className="w-full"
                     disabled={isLoading}
                   >
                     {isLoading ? "Signing in..." : "Sign In"}
@@ -281,7 +283,7 @@ const Auth = () => {
                 </div>
               </div>
 
-              <Card className="max-w-md mx-auto backdrop-blur-xl bg-white/40 border-white/20 shadow-lg shadow-purple-500/5">
+              <Card className="max-w-md mx-auto">
                 <CardHeader>
                   <CardTitle>Create Account</CardTitle>
                   <CardDescription>
@@ -321,7 +323,7 @@ const Auth = () => {
                     </div>
                     <Button 
                       type="submit" 
-                      className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                      className="w-full"
                       disabled={isLoading || isCreating}
                     >
                       {isLoading || isCreating ? "Creating Account..." : 

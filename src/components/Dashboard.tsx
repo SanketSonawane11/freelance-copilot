@@ -25,6 +25,7 @@ import { useUserData } from "@/hooks/useUserData";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { QuickActionDropdown } from "@/components/QuickActionDropdown";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Dashboard = () => {
   const [activeTab, setActiveTab] = useState(() => {
@@ -152,6 +153,7 @@ export const Dashboard = () => {
             <span className="text-sm text-muted-foreground hidden md:block">
               {userData?.profile?.name || user?.email?.split('@')[0]}
             </span>
+            <ThemeToggle />
             <Link to="/settings">
               <Button variant="ghost" size="sm">
                 <Settings className="w-4 h-4" />
