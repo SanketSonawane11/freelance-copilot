@@ -185,21 +185,21 @@ export const TaxEstimator = () => {
             {result ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-900">
-                    <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Gross Income</p>
-                    <p className="text-xl font-bold text-blue-900 dark:text-blue-100">₹{result.grossIncome.toLocaleString()}</p>
+                  <div className="bg-muted/50 p-4 rounded-lg border">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Gross Income</p>
+                    <p className="text-xl font-bold text-foreground">₹{result.grossIncome.toLocaleString()}</p>
                   </div>
-                  <div className="bg-emerald-50 dark:bg-emerald-950/30 p-4 rounded-lg border border-emerald-200 dark:border-emerald-900">
-                    <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1">Total Expenses</p>
-                    <p className="text-xl font-bold text-emerald-900 dark:text-emerald-100">₹{result.totalExpenses.toLocaleString()}</p>
+                  <div className="bg-muted/50 p-4 rounded-lg border">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Total Expenses</p>
+                    <p className="text-xl font-bold text-foreground">₹{result.totalExpenses.toLocaleString()}</p>
                   </div>
-                  <div className="bg-amber-50 dark:bg-amber-950/30 p-4 rounded-lg border border-amber-200 dark:border-amber-900">
-                    <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">Taxable Income</p>
-                    <p className="text-xl font-bold text-amber-900 dark:text-amber-100">₹{result.taxableIncome.toLocaleString()}</p>
+                  <div className="bg-muted/50 p-4 rounded-lg border">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Taxable Income</p>
+                    <p className="text-xl font-bold text-foreground">₹{result.taxableIncome.toLocaleString()}</p>
                   </div>
-                  <div className="bg-rose-50 dark:bg-rose-950/30 p-4 rounded-lg border border-rose-200 dark:border-rose-900">
-                    <p className="text-xs font-medium text-rose-600 dark:text-rose-400 mb-1">Total Tax</p>
-                    <p className="text-xl font-bold text-rose-900 dark:text-rose-100">₹{Math.round(result.tax).toLocaleString()}</p>
+                  <div className="bg-muted/50 p-4 rounded-lg border">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Total Tax</p>
+                    <p className="text-xl font-bold text-foreground">₹{Math.round(result.tax).toLocaleString()}</p>
                   </div>
                 </div>
                 <div className="bg-muted/50 p-4 rounded-lg border">
@@ -243,12 +243,7 @@ export const TaxEstimator = () => {
                 {taxTips.map((tip, index) => (
                   <div
                     key={index}
-                    className={`p-4 rounded-lg border-l-4 ${
-                      tip.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500' :
-                      tip.type === 'warning' ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-500' :
-                      tip.type === 'error' ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-500' :
-                      'bg-blue-50 dark:bg-blue-950/30 border-blue-500'
-                    }`}
+                    className={`p-4 rounded-lg border-l-4 bg-muted/50 border-primary`}
                   >
                     <h4 className="font-semibold text-sm text-foreground mb-1">{tip.title}</h4>
                     <p className="text-sm text-muted-foreground">{tip.description}</p>

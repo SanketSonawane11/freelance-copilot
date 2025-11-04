@@ -72,29 +72,25 @@ export const Dashboard = () => {
       label: "AI Proposals", 
       value: `${proposalsUsed}/${proposalLimit}`, 
       progress: (proposalsUsed / proposalLimit) * 100, 
-      icon: FileText,
-      color: "text-blue-500"
+      icon: FileText
     },
     { 
       label: "Smart Follow-ups", 
       value: `${followupsUsed}/${followupLimit}`, 
       progress: (followupsUsed / followupLimit) * 100, 
-      icon: MessageSquare,
-      color: "text-emerald-500"
+      icon: MessageSquare
     },
     { 
       label: "Invoices", 
       value: `${userData?.invoicesCount || 0}`, 
       progress: Math.min(((userData?.invoicesCount || 0) / 10) * 100, 100), 
-      icon: Receipt,
-      color: "text-purple-500"
+      icon: Receipt
     },
     { 
       label: "AI Tokens", 
       value: `${userData?.usageStats?.tokens_used || 0}`, 
       progress: Math.min(((userData?.usageStats?.tokens_used || 0) / 10000) * 100, 100), 
-      icon: Zap,
-      color: "text-orange-500"
+      icon: Zap
     }
   ];
 
@@ -235,7 +231,7 @@ export const Dashboard = () => {
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-sm font-medium text-muted-foreground">{stat.label}</h3>
-                          <Icon className={`w-5 h-5 ${stat.color}`} />
+                          <Icon className="w-5 h-5 text-primary" />
                         </div>
                         <p className="text-2xl font-bold text-foreground mb-3">{stat.value}</p>
                         <Progress value={stat.progress} className="h-2" />
@@ -262,11 +258,7 @@ export const Dashboard = () => {
                           key={index}
                           className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors"
                         >
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            activity.type === "proposal" ? "bg-blue-100 text-blue-600" :
-                            activity.type === "invoice" ? "bg-purple-100 text-purple-600" :
-                            "bg-orange-100 text-orange-600"
-                          }`}>
+                          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-accent text-accent-foreground">
                             {activity.type === "proposal" && <FileText className="w-5 h-5" />}
                             {activity.type === "invoice" && <Receipt className="w-5 h-5" />}
                             {activity.type === "tax" && <Calculator className="w-5 h-5" />}

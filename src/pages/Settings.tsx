@@ -71,7 +71,7 @@ const Settings = () => {
                   plan === "pro"
                     ? "bg-primary/10 text-primary"
                     : plan === "basic"
-                    ? "bg-blue-500/10 text-blue-600"
+                    ? "bg-accent text-accent-foreground"
                     : "bg-muted"
                 }`}
               >
@@ -81,8 +81,8 @@ const Settings = () => {
                 variant="outline"
                 className={`text-xs ${
                   status === "active"
-                    ? "border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
-                    : "border-muted-foreground/30"
+                    ? "border-primary text-primary bg-primary/10"
+                    : "border-border text-muted-foreground"
                 }`}
               >
                 {status === "active" ? "✓ Active" : "Inactive"}

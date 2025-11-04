@@ -136,30 +136,10 @@ const Index = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            {
-              icon: FileText,
-              title: "AI Proposals",
-              description: "Generate compelling proposals in seconds",
-              color: "bg-blue-500"
-            },
-            {
-              icon: MessageSquare,
-              title: "Smart Follow-ups",
-              description: "Automated client communication",
-              color: "bg-emerald-500"
-            },
-            {
-              icon: Receipt,
-              title: "Smart Invoicing",
-              description: "Professional invoices with one click",
-              color: "bg-purple-500"
-            },
-            {
-              icon: Calculator,
-              title: "Tax Calculator",
-              description: "Accurate tax estimations for freelancers",
-              color: "bg-orange-500"
-            }
+            { icon: FileText, title: "AI Proposals", description: "Generate compelling proposals in seconds" },
+            { icon: MessageSquare, title: "Smart Follow-ups", description: "Automated client communication" },
+            { icon: Receipt, title: "Smart Invoicing", description: "Professional invoices with one click" },
+            { icon: Calculator, title: "Tax Calculator", description: "Accurate tax estimations for freelancers" }
           ].map((feature, index) => (
             <motion.div
               key={index}
@@ -170,8 +150,8 @@ const Index = () => {
             >
               <Card className="h-full border-2 hover:border-primary/50 transition-colors">
                 <CardContent className="p-6">
-                  <div className={`w-12 h-12 ${feature.color} rounded-xl flex items-center justify-center mb-4`}>
-                    <feature.icon className="w-6 h-6 text-white" />
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-primary text-primary-foreground">
+                    <feature.icon className="w-6 h-6" />
                   </div>
                   <h3 className="text-xl font-semibold text-foreground mb-2">
                     {feature.title}

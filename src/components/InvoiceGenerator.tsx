@@ -135,10 +135,10 @@ export const InvoiceGenerator = () => {
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
-      PAID: "bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900",
-      PENDING: "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900",
-      OVERDUE: "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900",
-      SCHEDULED: "bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900",
+      PAID: "bg-primary/10 text-primary border-primary/20",
+      PENDING: "bg-muted text-muted-foreground border-border",
+      OVERDUE: "bg-destructive/10 text-destructive border-destructive/30",
+      SCHEDULED: "bg-accent text-accent-foreground border-accent",
     };
     const className = variants[status] || "bg-muted text-muted-foreground";
     return <Badge variant="outline" className={`${className} text-xs font-medium px-2 py-1`}>{status}</Badge>;
@@ -431,7 +431,7 @@ export const InvoiceGenerator = () => {
                       disabled={items.length === 1}
                       className="h-10"
                     >
-                      <Trash2 className="w-4 h-4 text-rose-500" />
+                      <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
                   </div>
                 </div>
