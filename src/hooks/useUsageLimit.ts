@@ -28,16 +28,12 @@ export function useUsageLimit(type: 'proposal' | 'followup') {
 
       // Determine current plan - billing_info takes precedence if subscription is active
       let currentPlan = 'starter';
-      if (billingInfo?.subscription_status === 'active' && billingInfo?.current_plan) {
+      const isExpired = billingInfo?.current_period_end && new Date(billingInfo.current_period_end) < new Date();
+      
+      if (billingInfo?.subscription_status === 'active' && !isExpired && billingInfo?.current_plan) {
         currentPlan = billingInfo.current_plan;
-      } else if (profile?.subscription_tier) {
+      } else if (profile?.subscription_tier && !isExpired) {
         currentPlan = profile.subscription_tier;
-      }
-
-      // Always use a valid plan for limits
-      const validPlans = ['starter', 'basic', 'pro'];
-      if (!validPlans.includes(currentPlan)) {
-        currentPlan = 'starter';
       }
       const planLimits = getPlanLimits(currentPlan);
       const limit = type === 'proposal' ? planLimits?.proposals ?? 0 : planLimits?.followups ?? 0;
@@ -61,11 +57,9 @@ export function useUsageLimit(type: 'proposal' | 'followup') {
       const canUse = currentUsage < limit;
       const remainingUsage = Math.max(0, limit - currentUsage);
 
-      // Debug log
       console.log('useUsageLimit debug:', { currentPlan, planLimits, limit, usageStats });
 
-      // Only log for debugging, not on every check
-      if (Math.random() < 0.1) { // Only log 10% of the time to reduce noise
+      if (Math.random() < 0.1) { 
         console.log(`Usage limit check - Plan: ${currentPlan}, Type: ${type}, Current: ${currentUsage}, Limit: ${limit}, Can use: ${canUse}`);
       }
 
@@ -79,8 +73,8 @@ export function useUsageLimit(type: 'proposal' | 'followup') {
       };
     },
     enabled: !!user?.id,
-    refetchInterval: 30000, // Reduced from 5 seconds to 30 seconds
-    staleTime: 20000, // Cache for 20 seconds
+    refetchInterval: 30000, 
+    staleTime: 20000,
   });
 
   return {
@@ -94,8 +88,22 @@ export function useUsageLimit(type: 'proposal' | 'followup') {
     increment: async () => {
       if (!user?.id) throw new Error('No user');
       
-      // Increment usage in billing_info
-      const { error } = await supabase
+      const currentMonth = new Date().toISOString().substring(0, 7) + '-01';
+      
+      // Update usage_stats - source of truth for the month
+      const { error: usageError } = await supabase
+        .from('usage_stats')
+        .upsert({
+          user_id: user.id,
+          month: currentMonth,
+          [`${type === 'proposal' ? 'proposals_used' : 'followups_used'}`]: (query.data?.current || 0) + 1,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,month' });
+        
+      if (usageError) throw new Error(`Failed to update usage stats: ${usageError.message}`);
+
+      // Also update billing_info for redundancy
+      await supabase
         .from('billing_info')
         .update({
           [`usage_${type === 'proposal' ? 'proposals' : 'followups'}`]: (query.data?.current || 0) + 1,
@@ -105,7 +113,6 @@ export function useUsageLimit(type: 'proposal' | 'followup') {
         
       if (error) throw new Error(`Failed to update usage: ${error.message}`);
       
-      // Refetch to get updated data
       query.refetch();
     }
   };

@@ -210,6 +210,20 @@ export const InvoiceGenerator = () => {
 
     setIsUploadingPdf(true);
     try {
+      // Check if invoice number already exists for this user
+      const { data: existingInvoice } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('invoice_number', invoiceNumber)
+        .maybeSingle();
+
+      if (existingInvoice) {
+        toast.error("Invoice number already exists. Please use a unique number.");
+        setIsUploadingPdf(false);
+        return;
+      }
+
       const pdfBlob = await generateInvoicePdfBlob(pdfData);
       const pdfUrl = await uploadInvoicePdf(invoiceNumber, pdfBlob);
 
@@ -225,8 +239,16 @@ export const InvoiceGenerator = () => {
           status: status,
           payment_status: paymentStatus,
           pdf_url: pdfUrl,
+          notes: notes
         });
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          toast.error("Invoice number already exists. Please use a unique number.");
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       toast.success("Invoice generated and saved! 📄");
       setCachedPdfData(pdfData);
@@ -418,7 +440,7 @@ export const InvoiceGenerator = () => {
                   <div className="col-span-3 sm:col-span-2">
                     <Label className="text-sm font-medium">Amount</Label>
                     <Input
-                      value={`₹${item.amount.toFixed(2)}`}
+                      value={`Rs.${item.amount.toFixed(2)}`}
                       readOnly
                       className="h-10 bg-muted"
                     />
@@ -477,18 +499,18 @@ export const InvoiceGenerator = () => {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal:</span>
-                  <span className="font-medium">₹{calculateSubtotal().toFixed(2)}</span>
+                  <span className="font-medium">Rs.{calculateSubtotal().toFixed(2)}</span>
                 </div>
                 {isGSTEnabled && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">GST (18%):</span>
-                    <span className="font-medium">₹{calculateGST().toFixed(2)}</span>
+                    <span className="font-medium">Rs.{calculateGST().toFixed(2)}</span>
                   </div>
                 )}
                 <Separator />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total:</span>
-                  <span className="text-primary">₹{calculateTotal().toFixed(2)}</span>
+                  <span className="text-primary">Rs.{calculateTotal().toFixed(2)}</span>
                 </div>
               </div>
 
@@ -549,7 +571,7 @@ export const InvoiceGenerator = () => {
                             </p>
                           </div>
                           <div className="text-right space-y-1">
-                            <p className="font-semibold text-sm">₹{Number(invoice.total_amount).toLocaleString()}</p>
+                            <p className="font-semibold text-sm">Rs.{Number(invoice.total_amount).toLocaleString()}</p>
                             {getStatusBadge(status)}
                           </div>
                         </div>

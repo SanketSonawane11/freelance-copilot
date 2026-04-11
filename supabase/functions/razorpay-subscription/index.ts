@@ -1,3 +1,4 @@
+//What is the most complicated code you have written independently without AI or anyone else's assistance?
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -59,7 +60,7 @@ async function handleCreateSubscription(req: Request, supabase: any) {
     })
   }
 
-  // Plan amounts (in paise - INR smallest unit)
+  // Plan amounts
   const planAmounts = {
     basic: 14900, // ₹149
     pro: 34900    // ₹349

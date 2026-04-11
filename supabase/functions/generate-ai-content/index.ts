@@ -1,11 +1,11 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -16,80 +16,104 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // Model fallback hierarchy - ordered by rate limits (most generous first)
 const MODELS = [
-  { name: 'gemini-1.5-flash', maxTokens: 1500 },
-  { name: 'gemini-1.0-pro', maxTokens: 1200 },
+  { name: "gemini-2.5-flash", maxTokens: 1500 },
+  { name: "gemini-2.0-pro", maxTokens: 1200 },
 ] as const;
 
 async function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function callGeminiWithFallback(prompt: string, plan: string, retryCount = 0): Promise<{ content: string; model: string; tokenCount: number }> {
-  
+async function callGeminiWithFallback(
+  prompt: string,
+  plan: string,
+  retryCount = 0
+): Promise<{ content: string; model: string; tokenCount: number }> {
   for (const modelConfig of MODELS) {
     try {
       console.log(`Attempting generation with model: ${modelConfig.name}`);
+
+      const maxTokens =
+        plan === "pro"
+          ? modelConfig.maxTokens
+          : Math.min(modelConfig.maxTokens, 1000);
       
-      const maxTokens = plan === "pro" ? modelConfig.maxTokens : Math.min(modelConfig.maxTokens, 1000);
-      
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelConfig.name}:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: prompt
-            }]
-          }],
-          generationConfig: {
-            maxOutputTokens: maxTokens,
-            temperature: modelConfig.name === 'gemini-1.0-pro' ? 0.7 : undefined,
-          }
-        }),
-      });
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelConfig.name}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: prompt,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              maxOutputTokens: maxTokens,
+              temperature:
+                modelConfig.name === "gemini-2.0-pro" ? 0.7 : undefined,
+            },
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.log(`Model ${modelConfig.name} failed with status ${response.status}:`, errorText);
-        
-        // If it's a 429 error, try exponential backoff on the first model only
-        if (response.status === 429 && modelConfig === MODELS[0] && retryCount < 2) {
+        console.log(
+          `Model ${modelConfig.name} failed with status ${response.status}:`,
+          errorText
+        );
+        if (
+          response.status === 429 &&
+          modelConfig === MODELS[0] &&
+          retryCount < 2
+        ) {
           const backoffTime = Math.pow(2, retryCount) * 6000; // 6s, 12s
           console.log(`Rate limited, retrying in ${backoffTime}ms...`);
           await sleep(backoffTime);
           return callGeminiWithFallback(prompt, plan, retryCount + 1);
         }
-        
-        // Continue to next model if current one fails
+
         continue;
       }
 
       const data = await response.json();
-      
+
       if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
-        console.log(`Model ${modelConfig.name} returned invalid response format`);
+        console.log(
+          `Model ${modelConfig.name} returned invalid response format`
+        );
         continue;
       }
 
       const content = data.candidates[0].content.parts[0].text.trim();
       const tokenCount = data.usageMetadata?.totalTokenCount || 0;
-      
+
       return {
         content,
         model: modelConfig.name,
-        tokenCount
+        tokenCount,
       };
-      
     } catch (error: any) {
-      console.log(`Model ${modelConfig.name} failed with error:`, error.message);
+      console.log(
+        `Model ${modelConfig.name} failed with error:`,
+        error.message
+      );
       continue;
     }
   }
-  
-  // If all models fail, throw error
-  throw new Error('All Gemini models are currently unavailable. Please try again in a few minutes.');
+
+  // If all models fail
+  throw new Error(
+    "All Gemini models are currently unavailable. Please try again in a few minutes."
+  );
 }
 
 serve(async (req) => {
@@ -101,41 +125,54 @@ serve(async (req) => {
   try {
     params = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid payload" }), { 
-      status: 400, 
-      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    return new Response(JSON.stringify({ error: "Invalid payload" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-  const { type, formInputs, plan = "starter", prefer_gpt4o = false, user_id } = params;
+  const {
+    type,
+    formInputs,
+    plan = "starter",
+    prefer_gpt4o = false,
+    user_id,
+  } = params;
 
   if (!type || !formInputs || !user_id) {
-    return new Response(JSON.stringify({ error: "type, user_id, formInputs required" }), { 
-      status: 400, 
-      headers: { ...corsHeaders, "Content-Type": "application/json" } 
-    });
+    return new Response(
+      JSON.stringify({ error: "type, user_id, formInputs required" }),
+      {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
   if (!["proposal", "followup"].includes(type)) {
-    return new Response(JSON.stringify({ error: "Invalid type" }), { 
-      status: 400, 
-      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    return new Response(JSON.stringify({ error: "Invalid type" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   if (!GEMINI_API_KEY) {
-    return new Response(JSON.stringify({ error: "Gemini API key not configured" }), { 
-      status: 500, 
-      headers: { ...corsHeaders, "Content-Type": "application/json" } 
-    });
+    return new Response(
+      JSON.stringify({ error: "Gemini API key not configured" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 
   let combined_prompt = "";
   let tone = formInputs.tone;
 
   if (type === "proposal") {
-    const system_context = plan === "pro"
-      ? "You are an expert freelance proposal generator. Write concise, impactful, and persuasive proposals for Indian freelancers, tailored to client, project type, and user-given tone. Write clean, professional text without JSON formatting or special characters. Format the proposal as readable text with proper paragraphs and structure."
-      : "You generate short, clear, professional proposals for freelancers. Write clean, readable text without JSON formatting. Use proper paragraphs and professional structure.";
-    
+    const system_context =
+      plan === "pro"
+        ? "You are an expert freelance proposal generator. Write concise, impactful, and persuasive proposals for Indian freelancers, tailored to client, project type, and user-given tone. Write clean, professional text without JSON formatting or special characters. Format the proposal as readable text with proper paragraphs and structure."
+        : "You generate short, clear, professional proposals for freelancers. Write clean, readable text without JSON formatting. Use proper paragraphs and professional structure.";
+
     combined_prompt = `${system_context}
 
 Client: ${formInputs.clientInfo || ""}
@@ -147,10 +184,11 @@ Tone: ${tone || "Professional"}
 
 Write a professional proposal that addresses these requirements. Use clear paragraphs and professional language. Do not use JSON format.`;
   } else {
-    const system_context = plan === "pro"
-      ? "You are an expert at writing polite, assertive, and contextual follow-up messages between Indian freelancers and clients. Write clean, readable text without JSON formatting. Use proper email/message structure."
-      : "Generate a short, gentle client follow-up. Write clean, readable text without JSON formatting.";
-    
+    const system_context =
+      plan === "pro"
+        ? "You are an expert at writing polite, assertive, and contextual follow-up messages between Indian freelancers and clients. Write clean, readable text without JSON formatting. Use proper email/message structure."
+        : "Generate a short, gentle client follow-up. Write clean, readable text without JSON formatting.";
+
     combined_prompt = `${system_context}
 
 Client: ${formInputs.clientName || ""}
@@ -170,26 +208,31 @@ Write a professional follow-up message. Use clear, readable text without JSON fo
 
   try {
     console.log("Generating content with Gemini fallback strategy...");
-    
+
     const result = await callGeminiWithFallback(combined_prompt, plan);
     result_content = result.content;
     tokens_used = result.tokenCount;
     model_used = result.model;
 
-    console.log(`Generated content length: ${result_content.length}, tokens: ${tokens_used}, model: ${model_used}`);
-
+    console.log(
+      `Generated content length: ${result_content.length}, tokens: ${tokens_used}, model: ${model_used}`
+    );
   } catch (err: any) {
     console.error("AI generation error:", err);
     return new Response(
-      JSON.stringify({ 
-        error: "AI generation is temporarily unavailable. Please try again in a few minutes.",
-        details: err?.message || "Rate limits exceeded"
+      JSON.stringify({
+        error:
+          "AI generation is temporarily unavailable. Please try again in a few minutes.",
+        details: err?.message || "Rate limits exceeded",
       }),
-      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 
-  // Save usage log (without deduplication)
+  // Save usage log
   try {
     await supabase.from("ai_usage_logs").insert({
       user_id,
@@ -203,11 +246,11 @@ Write a professional follow-up message. Use clear, readable text without JSON fo
   }
 
   return new Response(
-    JSON.stringify({ 
+    JSON.stringify({
       content: result_content,
-      model: model_used, 
-      tokens_used, 
-      deduped: false 
+      model: model_used,
+      tokens_used,
+      deduped: false,
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
