@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { getPlanLimits } from '@/utils/planLimits';
+import { calculateSubscriptionStatus } from '@/utils/subscriptionUtils';
 
-export function useUsageLimit(type: 'proposal' | 'followup') {
+export function useUsageLimit(type: 'proposal' | 'followup' | 'invoice') {
   const { user } = useAuth();
 
   const query = useQuery({
@@ -13,55 +14,56 @@ export function useUsageLimit(type: 'proposal' | 'followup') {
         return { current: 0, limit: 0, canUse: false, remainingUsage: 0, plan: 'starter' };
       }
 
-      // Get user's current plan from billing_info first, fallback to user_profiles
+      // Get billing info and profile for plan calculation
       const { data: billingInfo } = await supabase
         .from('billing_info')
-        .select('current_plan, subscription_status, usage_proposals, usage_followups')
+        .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('subscription_tier')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      // Determine current plan - billing_info takes precedence if subscription is active
-      let currentPlan = 'starter';
-      const isExpired = billingInfo?.current_period_end && new Date(billingInfo.current_period_end) < new Date();
+      const { effectivePlan, isExpired } = calculateSubscriptionStatus(billingInfo, profile);
+      const planLimits = getPlanLimits(effectivePlan);
       
-      if (billingInfo?.subscription_status === 'active' && !isExpired && billingInfo?.current_plan) {
-        currentPlan = billingInfo.current_plan;
-      } else if (profile?.subscription_tier && !isExpired) {
-        currentPlan = profile.subscription_tier;
-      }
-      const planLimits = getPlanLimits(currentPlan);
-      const limit = type === 'proposal' ? planLimits?.proposals ?? 0 : planLimits?.followups ?? 0;
+      let limit = 0;
+      if (type === 'proposal') limit = planLimits.proposals;
+      else if (type === 'followup') limit = planLimits.followups;
+      else if (type === 'invoice') limit = planLimits.invoices;
 
-      // Always get current usage from usage_stats for current month
+      // Always get current usage
       let currentUsage = 0;
       const currentMonth = new Date().toISOString().substring(0, 7) + '-01';
-      const { data: usageStats } = await supabase
-        .from('usage_stats')
-        .select('proposals_used, followups_used')
-        .eq('user_id', user.id)
-        .eq('month', currentMonth)
-        .single();
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
 
-      if (usageStats) {
-        currentUsage = type === 'proposal' ? 
-          (usageStats.proposals_used || 0) : 
-          (usageStats.followups_used || 0);
+      if (type === 'invoice') {
+        const { count } = await supabase
+          .from('invoices')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .gte('created_at', monthStart);
+        currentUsage = count || 0;
+      } else {
+        const { data: usageStats } = await supabase
+          .from('usage_stats')
+          .select('proposals_used, followups_used')
+          .eq('user_id', user.id)
+          .eq('month', currentMonth)
+          .maybeSingle();
+
+        if (usageStats) {
+          currentUsage = type === 'proposal' ? 
+            (usageStats.proposals_used || 0) : 
+            (usageStats.followups_used || 0);
+        }
       }
 
       const canUse = currentUsage < limit;
       const remainingUsage = Math.max(0, limit - currentUsage);
-
-      console.log('useUsageLimit debug:', { currentPlan, planLimits, limit, usageStats });
-
-      if (Math.random() < 0.1) { 
-        console.log(`Usage limit check - Plan: ${currentPlan}, Type: ${type}, Current: ${currentUsage}, Limit: ${limit}, Can use: ${canUse}`);
-      }
 
       return {
         current: currentUsage ?? 0,
@@ -69,7 +71,7 @@ export function useUsageLimit(type: 'proposal' | 'followup') {
         canUse,
         canIncrement: canUse,
         remainingUsage,
-        plan: currentPlan
+        plan: effectivePlan
       };
     },
     enabled: !!user?.id,
@@ -87,6 +89,11 @@ export function useUsageLimit(type: 'proposal' | 'followup') {
     canIncrement: query.data?.canUse || false,
     increment: async () => {
       if (!user?.id) throw new Error('No user');
+      if (type === 'invoice') {
+        // Invoices are counted directly, just refetch
+        query.refetch();
+        return;
+      }
       
       const currentMonth = new Date().toISOString().substring(0, 7) + '-01';
       
@@ -102,17 +109,6 @@ export function useUsageLimit(type: 'proposal' | 'followup') {
         
       if (usageError) throw new Error(`Failed to update usage stats: ${usageError.message}`);
 
-      // Also update billing_info for redundancy
-      await supabase
-        .from('billing_info')
-        .update({
-          [`usage_${type === 'proposal' ? 'proposals' : 'followups'}`]: (query.data?.current || 0) + 1,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
-        
-      if (error) throw new Error(`Failed to update usage: ${error.message}`);
-      
       query.refetch();
     }
   };

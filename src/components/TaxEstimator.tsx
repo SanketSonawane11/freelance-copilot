@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calculator, TrendingUp, Calendar, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserData } from "@/hooks/useUserData";
+import { Lock } from "lucide-react";
 
 export const TaxEstimator = () => {
   const [income, setIncome] = useState("");
@@ -19,6 +21,8 @@ export const TaxEstimator = () => {
   const [currentFinancialYear, setCurrentFinancialYear] = useState("");
   const [isLoadingTips, setIsLoadingTips] = useState(false);
   const [isLoadingDates, setIsLoadingDates] = useState(false);
+  const { data: userData } = useUserData();
+  const isPro = userData?.effectivePlan === 'pro';
 
   const calculateTax = () => {
     const grossIncome = parseFloat(income) || 0;
@@ -72,6 +76,10 @@ export const TaxEstimator = () => {
   };
 
   const fetchTaxTips = async () => {
+    if (!isPro) {
+      toast.error("Advanced tax intelligence is only available on the Pro plan.");
+      return;
+    }
     setIsLoadingTips(true);
     try {
       const { data, error } = await supabase.functions.invoke('tax-data', {
@@ -92,6 +100,10 @@ export const TaxEstimator = () => {
   };
 
   const fetchImportantDates = async () => {
+    if (!isPro) {
+      toast.error("Tax deadline intelligence is only available on the Pro plan.");
+      return;
+    }
     setIsLoadingDates(true);
     try {
       const { data, error } = await supabase.functions.invoke('tax-data', {
@@ -233,6 +245,7 @@ export const TaxEstimator = () => {
                 Tax Tips for FY {currentFinancialYear || "2025-26"}
               </CardTitle>
               <Button onClick={fetchTaxTips} variant="outline" size="sm" disabled={isLoadingTips}>
+                {!isPro && <Lock className="w-3 h-3 mr-1" />}
                 {isLoadingTips ? "Loading..." : "Refresh"}
               </Button>
             </div>
@@ -267,6 +280,7 @@ export const TaxEstimator = () => {
                 Important Dates FY {currentFinancialYear || "2025-26"}
               </CardTitle>
               <Button onClick={fetchImportantDates} variant="outline" size="sm" disabled={isLoadingDates}>
+                {!isPro && <Lock className="w-3 h-3 mr-1" />}
                 {isLoadingDates ? "Loading..." : "Refresh"}
               </Button>
             </div>

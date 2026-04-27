@@ -232,8 +232,11 @@ Write a professional follow-up message. Use clear, readable text without JSON fo
     );
   }
 
-  // Save usage log
+  // Save usage log and update monthly stats
   try {
+    const currentMonth = new Date().toISOString().substring(0, 7) + '-01';
+    
+    // Insert log
     await supabase.from("ai_usage_logs").insert({
       user_id,
       type,
@@ -241,8 +244,28 @@ Write a professional follow-up message. Use clear, readable text without JSON fo
       tokens_used,
       result_json: { content: result_content },
     });
+
+    // Update monthly stats using get_or_create_usage_stats logic via rpc if possible or direct upsert
+    const { data: currentStats } = await supabase
+      .from('usage_stats')
+      .select('tokens_used')
+      .eq('user_id', user_id)
+      .eq('month', currentMonth)
+      .maybeSingle();
+
+    const newTotalTokens = (currentStats?.tokens_used || 0) + tokens_used;
+
+    await supabase
+      .from('usage_stats')
+      .upsert({
+        user_id,
+        month: currentMonth,
+        tokens_used: newTotalTokens,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,month' });
+
   } catch (logError) {
-    console.error("Failed to save usage log:", logError);
+    console.error("Failed to update usage stats:", logError);
   }
 
   return new Response(

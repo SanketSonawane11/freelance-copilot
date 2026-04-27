@@ -27,7 +27,7 @@ serve(async (req) => {
     const { data: activeSubscriptions, error: fetchError } = await supabase
       .from('billing_info')
       .select('user_id, current_plan, subscription_status, current_period_end')
-      .eq('subscription_status', 'active');
+      .in('subscription_status', ['active', 'cancelled']);
 
     if (fetchError) {
       console.error('Error fetching active subscriptions:', fetchError);

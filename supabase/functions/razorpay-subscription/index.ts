@@ -198,25 +198,17 @@ async function handleCancelSubscription(req: Request, supabase: any) {
     })
   }
 
-  // Update both billing_info and user_profiles to downgrade to starter
+  // Update billing_info to set status to cancelled (user keeps access until period_end)
   const { error: billingError } = await supabase
     .from('billing_info')
     .update({
-      current_plan: 'starter',
       subscription_status: 'cancelled',
       updated_at: new Date().toISOString()
     })
     .eq('user_id', user_id)
 
-  const { error: profileError } = await supabase
-    .from('user_profiles')
-    .update({
-      subscription_tier: 'starter'
-    })
-    .eq('id', user_id)
-
-  if (billingError || profileError) {
-    console.error('Database update error:', billingError || profileError)
+  if (billingError) {
+    console.error('Database update error:', billingError)
     return new Response(JSON.stringify({ error: 'Failed to cancel subscription' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { QuickActionDropdown } from "@/components/QuickActionDropdown";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { getPlanLimits } from "@/utils/planLimits";
 
 export const Dashboard = () => {
   const [activeTab, setActiveTab] = useState(() => {
@@ -61,12 +62,24 @@ export const Dashboard = () => {
     );
   }
 
-  const subscriptionTier = userData?.billingInfo?.current_plan || userData?.profile?.subscription_tier || 'starter';
-  const proposalLimit = subscriptionTier === 'pro' ? 100 : 10;
-  const followupLimit = subscriptionTier === 'pro' ? 100 : 10;
+  const subscriptionTier = userData?.effectivePlan || 'starter';
+  const isExpired = userData?.isExpired;
+  
+  const planLimits = getPlanLimits(subscriptionTier);
+  const proposalLimit = planLimits.proposals;
+  const followupLimit = planLimits.followups;
 
   const proposalsUsed = userData?.usageStats?.proposals_used ?? 0;
   const followupsUsed = userData?.usageStats?.followups_used ?? 0;
+
+  useEffect(() => {
+    if (isExpired) {
+      toast.error("Your subscription has expired. You've been moved to the Starter plan.", {
+        duration: 10000,
+        id: "subscription-expired-toast"
+      });
+    }
+  }, [isExpired]);
 
   const stats = [
     { 
@@ -212,6 +225,25 @@ export const Dashboard = () => {
 
         {/* Main Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+          {isExpired && (
+            <div className="mb-6 bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-destructive" />
+                </div>
+                <div>
+                  <p className="font-semibold text-destructive">Subscription Expired</p>
+                  <p className="text-sm text-muted-foreground">Your Pro features are disabled. Renew now to continue using advanced AI.</p>
+                </div>
+              </div>
+              <Link to="/settings">
+                <Button variant="destructive" size="sm">
+                  Renew Subscription
+                </Button>
+              </Link>
+            </div>
+          )}
+
           {activeTab === "overview" && (
             <div className="space-y-6 max-w-7xl mx-auto">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">

@@ -26,7 +26,7 @@ export const FollowUpGenerator = () => {
   const [aiModel, setAiModel] = useState<string | null>(null);
 
   const { data: userData } = useUserData();
-  const subscriptionTier = userData?.billingInfo?.current_plan || userData?.profile?.subscription_tier || "starter";
+  const subscriptionTier = userData?.effectivePlan || 'starter';
   const usageLimit = useUsageLimit("followup");
 
   const handleGenerate = async () => {

@@ -17,6 +17,7 @@ import { PDFInvoiceDownload } from "./PDFInvoice";
 import { pdf as pdfInstance } from "@react-pdf/renderer";
 import { uploadInvoicePdf } from "@/utils/uploadInvoicePdf";
 import { Badge } from "@/components/ui/badge";
+import { useUsageLimit } from "@/hooks/useUsageLimit";
 
 interface InvoiceItem {
   description: string;
@@ -192,7 +193,18 @@ export const InvoiceGenerator = () => {
     return blob;
   }
 
+  const usageLimit = useUsageLimit('invoice');
+
   const handleGenerateInvoice = async () => {
+    if (usageLimit.isLoading) {
+      toast.loading("Checking usage...");
+      return;
+    }
+    if (!usageLimit.canUse) {
+      toast.error("You have reached your monthly invoice limit. Upgrade your plan to create more.");
+      return;
+    }
+
     if (!clientName || items.some(item => !item.description)) {
       toast.error("Please fill in client details and item descriptions");
       return;
@@ -225,7 +237,7 @@ export const InvoiceGenerator = () => {
       }
 
       const pdfBlob = await generateInvoicePdfBlob(pdfData);
-      const pdfUrl = await uploadInvoicePdf(invoiceNumber, pdfBlob);
+      const pdfUrl = await uploadInvoicePdf(invoiceNumber, pdfBlob, user.id);
 
       const { error } = await supabase
         .from('invoices')
@@ -253,9 +265,9 @@ export const InvoiceGenerator = () => {
       toast.success("Invoice generated and saved! 📄");
       setCachedPdfData(pdfData);
       setShowDownload(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating or uploading invoice:', error);
-      toast.error("Failed to generate/save invoice");
+      toast.error(`Failed to generate/save invoice: ${error.message || 'Unknown error'}`);
     } finally {
       setIsUploadingPdf(false);
     }

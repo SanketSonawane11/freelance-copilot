@@ -18,14 +18,14 @@ export const BillingTab: React.FC<BillingTabProps> = ({ data }) => {
   const proposalUsage = useUsageLimit('proposal');
   const followupUsage = useUsageLimit('followup');
 
-  const currentPlan = subscription?.current_plan || 'starter';
+  const currentPlan = subscription?.effectivePlan || 'starter';
   const subscriptionStatus = subscription?.subscription_status || 'inactive';
   const isActive = subscriptionStatus === 'active';
   const currentPeriodEnd = subscription?.current_period_end;
   const renewalDate = subscription?.renewal_date;
   
   const planLimits = getPlanLimits(currentPlan);
-  const isExpired = currentPeriodEnd && new Date(currentPeriodEnd) < new Date();
+  const isExpired = subscription?.isExpired;
 
   const handleUpgrade = (plan: 'basic' | 'pro') => {
     console.log('Upgrading to plan:', plan);

@@ -25,21 +25,23 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   headerLeft: {
-    flexDirection: 'column',
+    width: '50%',
   },
   headerRight: {
+    width: '45%',
     textAlign: 'right',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#5D5CDE',
-    marginBottom: 5,
+    marginBottom: 20,
     textTransform: 'uppercase',
   },
   invoiceDetails: {
     fontSize: 10,
     color: '#374151',
+    marginBottom: 2,
   },
   section: {
     flexDirection: 'row',

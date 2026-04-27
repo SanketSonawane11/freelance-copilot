@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { calculateSubscriptionStatus } from '@/utils/subscriptionUtils';
 
 export const useUserData = () => {
   const { user } = useAuth();
@@ -73,6 +74,8 @@ export const useUserData = () => {
         .eq('id', user.id)
         .single();
 
+      const { effectivePlan, isExpired } = calculateSubscriptionStatus(billingInfo, profile);
+
       return {
         usageStats,
         billingInfo,
@@ -82,7 +85,9 @@ export const useUserData = () => {
         recentProposals: recentProposals || [],
         recentInvoices: recentInvoices || [],
         recentTaxEstimations: recentTaxEstimations || [],
-        profile
+        profile,
+        isExpired,
+        effectivePlan
       };
     },
     enabled: !!user?.id,
