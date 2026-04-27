@@ -103,8 +103,7 @@ export function useUsageLimit(type: 'proposal' | 'followup' | 'invoice') {
         .upsert({
           user_id: user.id,
           month: currentMonth,
-          [`${type === 'proposal' ? 'proposals_used' : 'followups_used'}`]: (query.data?.current || 0) + 1,
-          updated_at: new Date().toISOString()
+          [`${type === 'proposal' ? 'proposals_used' : 'followups_used'}`]: (query.data?.current || 0) + 1
         }, { onConflict: 'user_id,month' });
         
       if (usageError) throw new Error(`Failed to update usage stats: ${usageError.message}`);

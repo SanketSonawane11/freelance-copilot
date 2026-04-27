@@ -16,8 +16,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // Model fallback hierarchy - ordered by rate limits (most generous first)
 const MODELS = [
-  { name: "gemini-2.5-flash", maxTokens: 1500 },
-  { name: "gemini-2.0-pro", maxTokens: 1200 },
+  { name: "gemini-3.1-flash", maxTokens: 1500 },
+  { name: "gemini-2.5-flash", maxTokens: 1200 },
 ] as const;
 
 async function sleep(ms: number) {
@@ -58,7 +58,7 @@ async function callGeminiWithFallback(
             generationConfig: {
               maxOutputTokens: maxTokens,
               temperature:
-                modelConfig.name === "gemini-2.0-pro" ? 0.7 : undefined,
+                modelConfig.name === "gemini-3.1-flash" ? 0.7 : undefined,
             },
           }),
         }
@@ -260,8 +260,7 @@ Write a professional follow-up message. Use clear, readable text without JSON fo
       .upsert({
         user_id,
         month: currentMonth,
-        tokens_used: newTotalTokens,
-        updated_at: new Date().toISOString()
+        tokens_used: newTotalTokens
       }, { onConflict: 'user_id,month' });
 
   } catch (logError) {

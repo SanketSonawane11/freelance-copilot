@@ -49,19 +49,6 @@ export const Dashboard = () => {
     setActiveTab(tab);
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <Brain className="w-8 h-8 text-primary" />
-          </div>
-          <p className="text-muted-foreground">Loading workspace...</p>
-        </div>
-      </div>
-    );
-  }
-
   const subscriptionTier = userData?.effectivePlan || 'starter';
   const isExpired = userData?.isExpired;
   
@@ -80,6 +67,19 @@ export const Dashboard = () => {
       });
     }
   }, [isExpired]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Brain className="w-8 h-8 text-primary" />
+          </div>
+          <p className="text-muted-foreground">Loading workspace...</p>
+        </div>
+      </div>
+    );
+  }
 
   const stats = [
     { 
